@@ -78,6 +78,11 @@ class ZSpotify:
             help="Downloads your liked songs",
             action="store_true",
         )
+        parser.add_argument(
+            "-lsdall",
+            help="Download all songs from all (main) artists that appear in your liked songs",
+            action="store_true",
+        )
         parser.add_argument("-pl", "--playlist", help="Download playlist by id or url")
         parser.add_argument(
             "-tr", "--track", help="Downloads a track from their id or url"
@@ -486,6 +491,13 @@ class ZSpotify:
         print(f"Finished downloading {artist['name']} artist")
         return True
 
+    def lsdall(self):
+        artist_ids = self.respot.request.get_all_liked_artists()
+        print(f"Downloading [{len(artist_ids)}] artists")
+
+        for artist_id in artist_ids:
+            self.download_artist(artist_id)
+
     def download_liked_songs(self):
         songs = self.respot.request.get_liked_tracks()
         if not songs:
@@ -629,6 +641,8 @@ class ZSpotify:
             self.download_select_user_playlists()
         elif self.args.liked_songs:
             self.download_liked_songs()
+        elif self.args.lsdall:
+            self.lsdall()
         elif self.args.playlist:
             for playlist in self.split_input(self.args.playlist):
                 if "spotify.com" in self.args.playlist:

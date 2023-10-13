@@ -560,7 +560,29 @@ class RespotRequest:
                 "playlists": ret_playlists,
                 "artists": ret_artists,
             }
+    
+    def get_all_liked_artists(self):
+        
+        # sets do not allow duplicates
+        artists = set()
+        offset = 0
+        limit = 50
 
+        while True:
+            resp = self.authorized_get_request(
+                "https://api.spotify.com/v1/me/tracks",
+                self.token_your_libary,
+                params={"limit": limit, "offset": offset},
+            ).json()
+
+            offset += limit
+            for song in resp["items"]:
+                artists.add(str(song['track']['artists'][0]['id']))
+
+            if len(resp["items"]) < limit:
+                break
+
+        return artists
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
