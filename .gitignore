@@ -167,3 +167,5 @@ credentials*
 *.bak
 api.http
 test.py
+
+*.txt
