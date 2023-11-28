@@ -32,6 +32,10 @@ pip install git+https://github.com/jsavargas/zspotify
 docker pull jsavargas/zspotify
 docker run -v ${HOME}/.zspotify:/root/.zspotify -v ${HOME}/Music:/root/Music -it jsavargas/zspotify
 ```
+***PLEASE NOTE 🗒️***
+You must first run zspotify locally and authenticate. Migrate your authentication file (credentials.json) into the .zspotify volume on your docker system so that it can be used on start.  
+  Otherwise your Docker run will fail due to it trying to recieve a username input that it will never get.
+
 
 
 ## Usage
@@ -48,7 +52,7 @@ positional arguments:
   search                Searches for a track, album, artist or playlist or download by url
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help            Show this help message and exit
   -v, --version         Shows the current version of ZSpotify
   -ap, --all-playlists  Downloads all saved playlist from your library
   -sp, --select-playlists
@@ -67,7 +71,8 @@ options:
   -fs FULL_SHOW, --full-show FULL_SHOW
                         Downloads all show episodes from id or url
   -cd CONFIG_DIR, --config-dir CONFIG_DIR
-                        Folder to save the config files
+                        Folder to save the config files  
+                        Default: *nix => $HOME/.zspotify Windows => (%homepath%)/.zspotify
   --archive ARCHIVE     File to save the downloaded files
   -d DOWNLOAD_DIR, --download-dir DOWNLOAD_DIR
                         Folder to save the downloaded files
@@ -79,17 +84,21 @@ options:
                         Audio format to download the tracks
   --album-in-filename   Adds the album name to the filename
   --antiban-time ANTIBAN_TIME
-                        Time to wait between downloads to avoid Ban
+                        Time (seconds) to wait between downloads to avoid Ban
   --antiban-album ANTIBAN_ALBUM
-                        Time to wait between album downloads to avoid Ban
-  --limit LIMIT         limit
+                        Time (seconds) to wait between album downloads to avoid Ban
+  --limit LIMIT         Search Limit (seconds)
+                        Imposes a search limit that is overridable with the environment variable LIMIT_RESULTS
+                        Default: 10
   -f, --force-premium   Force premium account
   -ns, --not-skip-existing
                         If flag setted NOT Skip existing already downloaded tracks
   -s, --skip-downloaded
                         Skip already downloaded songs if exist in archive even it is doesn't exist in the filesystem
   -cf CREDENTIALS_FILE, --credentials-file CREDENTIALS_FILE
-                        File to save the credentials
+                        File to save the credentials  
+                        Run once to create this file with your terminal input username and password.   
+                        Then move the file and change the directory with this argument.
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
                         Bulk download from file with urls
 ```
