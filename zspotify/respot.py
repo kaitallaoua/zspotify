@@ -565,7 +565,7 @@ class RespotRequest:
     def get_all_liked_artists(self):
         
         # sets do not allow duplicates
-        artists = set()
+        liked_artist_ids = set()
         offset = 0
         limit = 50
 
@@ -578,12 +578,12 @@ class RespotRequest:
 
             offset += limit
             for song in resp["items"]:
-                artists.add(str(song['track']['artists'][0]['id']))
+                liked_artist_ids.add(str(song['track']['artists'][0]['id']))
 
             if len(resp["items"]) < limit:
                 break
 
-        return artists
+        return liked_artist_ids
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
