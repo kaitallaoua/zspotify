@@ -586,7 +586,10 @@ class RespotRequest:
             if len(resp["items"]) < limit:
                 break
 
-        return liked_artist_ids
+
+        sorted_liked_artist_ids = sorted(liked_artist_ids)
+
+        return sorted_liked_artist_ids
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
