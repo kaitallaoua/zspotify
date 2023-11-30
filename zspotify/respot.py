@@ -577,9 +577,12 @@ class RespotRequest:
             ).json()
 
             offset += limit
-            for song in resp["items"]:
-                liked_artist_ids.add(str(song['track']['artists'][0]['id']))
-
+            try:
+                for song in resp["items"]:
+                    liked_artist_ids.add(str(song['track']['artists'][0]['id']))
+            except KeyError:
+                print(f"Failed to get liked artists for offset: {offset}, continuing")
+                continue
             if len(resp["items"]) < limit:
                 break
 
