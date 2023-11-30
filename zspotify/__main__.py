@@ -636,32 +636,39 @@ class ZSpotify:
         self.archive.archive_migration(paths_to_check)
 
         if self.args.all_playlists:
+            raise NotImplementedError()
             self.download_all_user_playlists()
         elif self.args.select_playlists:
+            raise NotImplementedError()
             self.download_select_user_playlists()
         elif self.args.liked_songs:
+            raise NotImplementedError()
             self.download_liked_songs()
         elif self.args.lsdall:
             self.lsdall()
         elif self.args.playlist:
+            raise NotImplementedError()
             for playlist in self.split_input(self.args.playlist):
                 if "spotify.com" in self.args.playlist:
                     self.download_by_url(playlist)
                 else:
                     self.download_playlist(playlist)
         elif self.args.album:
+            raise NotImplementedError()
             for album in self.split_input(self.args.album):
                 if "spotify.com" in self.args.album:
                     self.download_by_url(album)
                 else:
                     self.download_album(album)
         elif self.args.artist:
+            raise NotImplementedError()
             for artist in self.split_input(self.args.artist):
                 if "spotify.com" in self.args.artist:
                     self.download_by_url(artist)
                 else:
                     self.download_artist(artist)
         elif self.args.track:
+            raise NotImplementedError()
             for track in self.split_input(self.args.track):
                 if "spotify.com" in self.args.track:
                     self.download_by_url(track)
@@ -669,29 +676,34 @@ class ZSpotify:
                     self.download_track(track)
             print("All Done")
         elif self.args.episode:
+            raise NotImplementedError()
             for episode in self.split_input(self.args.episode):
                 if "spotify.com" in self.args.episode:
                     self.download_by_url(episode)
                 else:
                     self.download_track(episode)
         elif self.args.full_show:
+            raise NotImplementedError()
             for show in self.split_input(self.args.full_show):
                 if "spotify.com" in self.args.full_show:
                     self.download_by_url(show)
                 else:
                     self.download_all_show_episodes(show)
         elif self.args.search:
+            raise NotImplementedError()
             for query in self.split_input(self.args.search):
                 if "spotify.com" in query:
                     self.download_by_url(query)
                 else:
                     self.search(query)
         elif self.args.bulk_download:
+            raise NotImplementedError()
             with open(self.args.bulk_download, "r") as file:
                 for line in file:
                     for url in self.split_input(line.strip()):
                         self.download_by_url(url)
         else:
+            raise NotImplementedError()
             while True:
                 self.args.search = input("Search: ")
                 while self.args.search == "":
