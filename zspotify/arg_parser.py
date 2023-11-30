@@ -35,6 +35,7 @@ def parse_args():
     )
     parser.add_argument(
         "-lsdall",
+        "--all-liked-all-artists",
         help="Download all songs from all (main) artists that appear in your liked songs",
         action="store_true",
     )

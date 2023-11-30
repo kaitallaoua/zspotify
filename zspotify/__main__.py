@@ -339,7 +339,7 @@ class ZSpotify:
         print(f"Finished downloading {artist['name']} artist")
         return True
 
-    def lsdall(self):
+    def download_all_songs_from_all_liked_artists(self):
         artist_ids = self.respot.request.get_all_liked_artists()
         print(f"Downloading [{len(artist_ids)}] artists")
 
@@ -492,8 +492,8 @@ class ZSpotify:
         elif self.args.liked_songs:
             raise NotImplementedError()
             self.download_liked_songs()
-        elif self.args.lsdall:
-            self.lsdall()
+        elif self.args.all_liked_all_artists:
+            self.download_all_songs_from_all_liked_artists()
         elif self.args.playlist:
             raise NotImplementedError()
             for playlist in self.split_input(self.args.playlist):
