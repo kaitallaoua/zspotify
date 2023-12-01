@@ -7,7 +7,7 @@ import os
 
 from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
-from .utils import FormatUtils, Archive
+from .utils import FormatUtils
 from .arg_parser import parse_args
 
 try:
@@ -38,9 +38,6 @@ class ZSpotify:
         self.album_in_filename = self.args.album_in_filename
         self.antiban_album_time = self.args.antiban_album
         self.not_skip_existing = self.args.not_skip_existing
-        self.skip_downloaded = self.args.skip_downloaded
-        self.archive_file = self.config_dir / self.args.archive
-        self.archive = Archive(self.archive_file)
         self.tagger = AudioTagger()
 
     def splash(self):
@@ -144,10 +141,6 @@ class ZSpotify:
         return filename
 
     def download_track(self, track_id, path=None, caller=None):
-        if self.args.skip_downloaded and self.archive.exists(track_id):
-            print(f"Skipping {track_id} - Already Downloaded")
-            return True
-
         track = self.respot.request.get_track_info(track_id)
 
         if track is None:
@@ -188,14 +181,6 @@ class ZSpotify:
 
         if output_path == "":
             return
-
-        self.archive.add(
-            track_id,
-            artist=artist_name,
-            track_name=audio_name,
-            fullpath=output_path,
-            audio_type="music",
-        )
 
         print(f"Setting audiotags {filename}")
         self.tagger.set_audio_tags(
@@ -473,15 +458,6 @@ class ZSpotify:
         self.splash()
         while not self.login():
             print("Invalid credentials")
-
-        paths_to_check = (
-            self.config_dir,
-            self.download_dir,
-            self.music_dir,
-            self.episodes_dir,
-        )
-
-        self.archive.archive_migration(paths_to_check)
 
         if self.args.all_playlists:
             raise NotImplementedError()

@@ -60,11 +60,6 @@ def parse_args():
         default=Path.cwd() / "config",
     )
     parser.add_argument(
-        "--archive",
-        help="File to save the downloaded files",
-        default="archive.json",
-    )
-    parser.add_argument(
         "-d",
         "--download-dir",
         help="Folder to save the downloaded files",
@@ -129,13 +124,6 @@ def parse_args():
         help="If flag setted NOT Skip existing already downloaded tracks",
         action="store_false",
         default=True,
-    )
-    parser.add_argument(
-        "-s",
-        "--skip-downloaded",
-        help="Skip already downloaded songs if exist in archive even it is doesn't exist in the filesystem",
-        action="store_true",
-        default=False,
     )
     parser.add_argument(
         "-cf",
