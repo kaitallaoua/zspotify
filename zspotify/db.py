@@ -5,9 +5,7 @@ from typing import Any
 from datetime import datetime
 from pathlib import Path
 
-SpotifyArtistId = str
-ArtistName = str
-PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
+from .custom_types import *
 
 CREATE_ARTISTS_TABLE = """
 CREATE TABLE IF NOT EXISTS artists (

@@ -7,6 +7,8 @@ import time
 import shutil
 from typing import List, Optional
 from .db import db_manager
+from .custom_types import *
+
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
@@ -17,9 +19,10 @@ SpotifyArtistId = str
 ArtistName = str
 PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
 
+
 def removeDuplicates(lst):
-     
     return [t for t in (set(tuple(i) for i in lst))]
+
 
 class Respot:
     def __init__(
@@ -575,17 +578,16 @@ class RespotRequest:
             }
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
-        if(not db_manager.have_all_liked_artists()):
+        if not db_manager.have_all_liked_artists():
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
             db_manager.store_all_liked_artists(all_liked_spotify_artists)
 
             db_manager.set_have_all_liked_artist(True, should_commit=True)
-        
+
         # for consistency, always get result from db
         return db_manager.get_all_liked_artist_ids()
-
 
     def request_all_liked_artists(self) -> List[PackedArtists]:
         packed_artists: PackedArtists = []
@@ -613,7 +615,6 @@ class RespotRequest:
 
         # insert all these artists into artist table
         # upsert all artists table so next time we dont have to call this
-
 
         return sorted(removeDuplicates(packed_artists))
 
