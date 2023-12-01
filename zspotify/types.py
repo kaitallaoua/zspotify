@@ -1,0 +1,1 @@
+SpotifyArtistId = str

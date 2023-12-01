@@ -3,5 +3,5 @@ services:
   zspotify:
     image: jsavargas/zspotify
     volumes:
-      - ${HOME}/.zspotify:/root/.zspotify
+      # - ${HOME}/.zspotify:/root/.zspotify
       - ${HOME}/Music:/root/Music

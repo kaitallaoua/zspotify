@@ -5,12 +5,15 @@ import re
 import requests
 import time
 import shutil
-
+from typing import List, Optional
+import db
+from .types import SpotifyArtistId
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
+
 
 
 class Respot:
@@ -199,8 +202,12 @@ class RespotRequest:
                 "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
                 "album_name": info["tracks"][0]["album"]["name"],
                 "audio_name": info["tracks"][0]["name"],
-                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"] if img_index >= 0 else None,
-                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[0],
+                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
+                if img_index >= 0
+                else None,
+                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
+                    0
+                ],
                 "disc_number": info["tracks"][0]["disc_number"],
                 "audio_number": info["tracks"][0]["track_number"],
                 "scraped_song_id": info["tracks"][0]["id"],
@@ -561,9 +568,20 @@ class RespotRequest:
                 "playlists": ret_playlists,
                 "artists": ret_artists,
             }
-    
-    def get_all_liked_artists(self):
+
+    def get_all_liked_artists(self) -> List[SpotifyArtistId]:
+        if(not db.db_manager.have_all_liked_artists()):
+            all_liked_spotify_artists = self.request_all_liked_artists()
+
+            # store in db
+
+            db.db_manager.set_have_all_liked_artist(True, should_commit=True)
         
+        # for consistency, always get result from db
+        return db.db_manager.get_all_liked_artists()
+
+
+    def request_all_liked_artists(self) -> List[SpotifyArtistId]:
         # sets do not allow duplicates
         liked_artist_ids = set()
         offset = 0
@@ -579,17 +597,21 @@ class RespotRequest:
             offset += limit
             try:
                 for song in resp["items"]:
-                    liked_artist_ids.add(str(song['track']['artists'][0]['id']))
+                    liked_artist_ids.add(str(song["track"]["artists"][0]["id"]))
             except KeyError:
                 print(f"Failed to get liked artists for offset: {offset}, continuing")
                 continue
             if len(resp["items"]) < limit:
                 break
 
-
         sorted_liked_artist_ids = sorted(liked_artist_ids)
 
+        # insert all these artists into artist table
+        # upsert all artists table so next time we dont have to call this
+
+
         return sorted_liked_artist_ids
+
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
@@ -686,14 +708,14 @@ class RespotTrackHandler:
         audio_bytes.seek(0)
         magic_bytes = audio_bytes.read(16)
 
-        if magic_bytes.startswith(b'\xFF\xFB') or magic_bytes.startswith(b'\xFF\xFA'):
-            return 'mp3'
-        elif b'RIFF' in magic_bytes and b'WAVE' in magic_bytes:
-            return 'wav'
-        elif magic_bytes.startswith(b'fLaC'):
-            return 'flac'
-        elif magic_bytes.startswith(b'OggS'):
-            return 'ogg'
+        if magic_bytes.startswith(b"\xFF\xFB") or magic_bytes.startswith(b"\xFF\xFA"):
+            return "mp3"
+        elif b"RIFF" in magic_bytes and b"WAVE" in magic_bytes:
+            return "wav"
+        elif magic_bytes.startswith(b"fLaC"):
+            return "flac"
+        elif magic_bytes.startswith(b"OggS"):
+            return "ogg"
         else:
             raise ValueError("The audio stream is malformed.")
 

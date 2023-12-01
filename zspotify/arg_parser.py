@@ -57,7 +57,7 @@ def parse_args():
         "-cd",
         "--config-dir",
         help="Folder to save the config files",
-        default=Path.home() / ".zspotify",
+        default=Path.cwd() / "config",
     )
     parser.add_argument(
         "--archive",
@@ -141,7 +141,7 @@ def parse_args():
         "-cf",
         "--credentials-file",
         help="File to save the credentials",
-        default=Path.home() / ".zspotify" / "credentials.json",
+        default=Path.cwd() / "config" / "credentials.json",
     )
     parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
