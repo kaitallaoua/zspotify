@@ -1,15 +1,20 @@
+# from .types import SpotifyArtistId
+
 import sqlite3
 from typing import Any
 from datetime import datetime
 from pathlib import Path
-from .types import SpotifyArtistId
+
+SpotifyArtistId = str
+ArtistName = str
+PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
 
 CREATE_ARTISTS_TABLE = """
 CREATE TABLE IF NOT EXISTS artists (
 	artist_id TEXT NOT NULL PRIMARY KEY,
 	name TEXT NOT NULL,
     download_completed INTEGER NOT NULL DEFAULT 0,
-    timestamp_completed TIMESTAMP NOT NULL
+    timestamp_completed TIMESTAMP DEFAULT NULL
 );
 """
 
@@ -19,7 +24,7 @@ CREATE TABLE IF NOT EXISTS albums (
 	artist_id TEXT NOT NULL,
 	name TEXT NOT NULL,
     download_completed INTEGER NOT NULL DEFAULT 0,
-    timestamp_completed TIMESTAMP NOT NULL,
+    timestamp_completed TIMESTAMP DEFAULT NULL,
     full_filepath TEXT,
     FOREIGN KEY (artist_id) 
   	REFERENCES artists (artist_id)
@@ -36,7 +41,7 @@ CREATE TABLE IF NOT EXISTS songs (
     quality_kbps INTEGER NOT NULL,
 	name TEXT NOT NULL,
     download_completed INTEGER NOT NULL DEFAULT 0,
-    timestamp_completed TIMESTAMP NOT NULL,
+    timestamp_completed TIMESTAMP DEFAULT NULL,
     full_filepath TEXT,
     FOREIGN KEY (artist_id) 
     REFERENCES artists (artist_id)
@@ -115,8 +120,11 @@ class SQLiteDBManager:
         else:
             return True
 
-    def get_all_liked_artists(self) -> list[SpotifyArtistId]:
-        return self.cursor.execute("SELECT artist_id FROM artists").fetchall()
+    def get_all_liked_artist_ids(self) -> list[SpotifyArtistId]:
+        # you always get a tuple back, just need to index to the first value
+
+        result = self.cursor.execute("SELECT artist_id FROM artists").fetchall()
+        return [id[0] for id in result]
 
     def set_have_all_liked_artist(self, value: bool, should_commit: bool = False):
         param = (
@@ -132,8 +140,16 @@ class SQLiteDBManager:
 
         if should_commit:
             self.connection.commit()
-    def store_all_liked_artists(self, ):
-        ...
+
+    def store_all_liked_artists(
+        self, packed_artists: list[PackedArtists], should_commit: bool = False
+    ) -> None:
+        self.cursor.executemany(
+            "INSERT INTO artists (artist_id, name) VALUES (?, ?)", packed_artists
+        )
+
+        if should_commit:
+            self.connection.commit()
 
     def commit(self) -> None:
         self.connection.commit()
@@ -142,22 +158,24 @@ class SQLiteDBManager:
         self.cursor.close()
         self.connection.close()
 
-    def test(self):
-        self.cursor.execute(
-            "UPDATE artists SET artist_id = ? WHERE artists.artist_id = ?",
-            ("aaa", "abc123"),
-        )
-
 
 db_manager = SQLiteDBManager()
+# a = [("3QJzdZJYIAcoET1GcfpNGi", "damain marley"), ("7lZauDnRoAC3kmaYae2opv", "Dabin"), ("3QJzdZJYIAcoET1GcfpNGi", "damain marley")]
 
-print(db_manager.have_all_liked_artists())
-db_manager.set_have_all_liked_artist(False, should_commit=True)
+# def removeDuplicates(lst):
 
-print(db_manager.have_all_liked_artists())
-# db_manager.insert_one_into_artists(("abc128899", "tradddvis", 0, datetime.now()))
-# db_manager.insert_one_into_albums(("albbffd", "abc128899", "crazyalmb", 0, datetime.now(), "/home/mus"))
-# db_manager.insert_one_into_songs(("song1", "albbffd", "abc128899", 320, "cool", 1, datetime.now(), "/home/ms"))
-# # db_manager.test()
+#     return [t for t in (set(tuple(i) for i in lst))]
+
+# s = sorted(removeDuplicates(a))
+
+# db_manager.store_all_liked_artists(s, should_commit=True)
+# # print(db_manager.have_all_liked_artists())
+# # db_manager.set_have_all_liked_artist(False, should_commit=True)
+
+# # print(db_manager.have_all_liked_artists())
+# # db_manager.insert_one_into_artists(("abc128899", "tradddvis", 0, datetime.now()))
+# # db_manager.insert_one_into_albums(("albbffd", "abc128899", "crazyalmb", 0, datetime.now(), "/home/mus"))
+# # db_manager.insert_one_into_songs(("song1", "albbffd", "abc128899", 320, "cool", 1, datetime.now(), "/home/ms"))
+# # # db_manager.test()
 # db_manager.commit()
 # db_manager.close_all()

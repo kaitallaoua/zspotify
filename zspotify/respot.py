@@ -6,15 +6,20 @@ import requests
 import time
 import shutil
 from typing import List, Optional
-import db
-from .types import SpotifyArtistId
+from .db import db_manager
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
 
+SpotifyArtistId = str
+ArtistName = str
+PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
 
+def removeDuplicates(lst):
+     
+    return [t for t in (set(tuple(i) for i in lst))]
 
 class Respot:
     def __init__(
@@ -570,20 +575,20 @@ class RespotRequest:
             }
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
-        if(not db.db_manager.have_all_liked_artists()):
+        if(not db_manager.have_all_liked_artists()):
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
+            db_manager.store_all_liked_artists(all_liked_spotify_artists)
 
-            db.db_manager.set_have_all_liked_artist(True, should_commit=True)
+            db_manager.set_have_all_liked_artist(True, should_commit=True)
         
         # for consistency, always get result from db
-        return db.db_manager.get_all_liked_artists()
+        return db_manager.get_all_liked_artist_ids()
 
 
-    def request_all_liked_artists(self) -> List[SpotifyArtistId]:
-        # sets do not allow duplicates
-        liked_artist_ids = set()
+    def request_all_liked_artists(self) -> List[PackedArtists]:
+        packed_artists: PackedArtists = []
         offset = 0
         limit = 50
 
@@ -597,20 +602,20 @@ class RespotRequest:
             offset += limit
             try:
                 for song in resp["items"]:
-                    liked_artist_ids.add(str(song["track"]["artists"][0]["id"]))
+                    id = str(song["track"]["artists"][0]["id"])
+                    name = str(song["track"]["artists"][0]["name"])
+                    packed_artists.append((id, name))
             except KeyError:
                 print(f"Failed to get liked artists for offset: {offset}, continuing")
                 continue
             if len(resp["items"]) < limit:
                 break
 
-        sorted_liked_artist_ids = sorted(liked_artist_ids)
-
         # insert all these artists into artist table
         # upsert all artists table so next time we dont have to call this
 
 
-        return sorted_liked_artist_ids
+        return sorted(removeDuplicates(packed_artists))
 
 
 class RespotTrackHandler:

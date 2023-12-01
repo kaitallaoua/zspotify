@@ -4,8 +4,7 @@ from getpass import getpass
 from pathlib import Path
 import importlib.metadata as metadata
 import os
-import db
-
+from .db import db_manager
 
 from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
