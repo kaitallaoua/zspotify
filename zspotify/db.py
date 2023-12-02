@@ -92,34 +92,6 @@ class SQLiteDBManager:
         self.cursor.execute(CREATE_FETCHED_ARTIST_ALBUMS_TABLE)
         self.connection.commit()
 
-    def insert_one_into_artists(
-        self, value: tuple[str, str, int, datetime], should_commit: bool = False
-    ) -> None:
-        self.cursor.execute("INSERT INTO artists VALUES (?, ?, ?, ?)", value)
-
-        if should_commit:
-            self.connection.commit()
-
-    def insert_one_into_albums(
-        self,
-        value: tuple[str, str, str, int, datetime, str],
-        should_commit: bool = False,
-    ) -> None:
-        self.cursor.execute("INSERT INTO albums VALUES (?, ?, ?, ?, ?, ?)", value)
-
-        if should_commit:
-            self.connection.commit()
-
-    def insert_one_into_songs(
-        self,
-        value: tuple[str, str, str, int, str, int, datetime, str],
-        should_commit: bool = False,
-    ) -> None:
-        self.cursor.execute("INSERT INTO songs VALUES (?, ?, ?, ?, ?, ?, ?, ?)", value)
-
-        if should_commit:
-            self.connection.commit()
-
     def have_all_artist_albums(self, artist_id: SpotifyArtistId):
         fetched = self.cursor.execute(
             "SELECT have_fetched_all_albums FROM fetched_albums WHERE artist_id = ?",
