@@ -10,6 +10,7 @@ from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
 from .utils import FormatUtils
 from .arg_parser import parse_args
+from librespot.audio.decoders import AudioQuality
 
 try:
     __version__ = metadata.version("zspotify")
@@ -142,61 +143,75 @@ class ZSpotify:
         return filename
 
     def download_track(self, track_id, path=None, caller=None):
-        track = self.respot.request.get_track_info(track_id)
+        if not db_manager.have_song_downloaded(track_id):
+            track = self.respot.request.get_track_info(track_id)
 
-        if track is None:
-            print(f"Skipping {track_id} - Could not get track info")
-            return True
-
-        if not track["is_playable"]:
-            print(f"Skipping {track['audio_name']} - Not Available")
-            return True
-
-        audio_name = track.get("audio_name")
-        audio_number = track.get("audio_number")
-        artist_name = track.get("artist_name")
-        album_artist = track.get("album_artist")
-        album_name = track.get("album_name")
-
-        filename = self.generate_filename(
-            caller,
-            audio_name,
-            audio_number,
-            artist_name,
-            album_name,
-        )
-
-        base_path = path or self.music_dir
-        if caller == "show" or caller == "episode":
-            base_path = path or self.episodes_dir
-        temp_path = base_path / (filename + "." + self.args.audio_format)
-
-        for ext in (".mp3", ".ogg"):
-            if self.not_skip_existing and (base_path / (filename + ext)).exists():
-                print(f"Skipping {filename + ext} - Already downloaded")
+            if track is None:
+                print(f"Skipping {track_id} - Could not get track info")
                 return True
 
-        output_path = self.respot.download(
-            track_id, temp_path, self.args.audio_format, True
-        )
+            if not track["is_playable"]:
+                print(f"Skipping {track['audio_name']} - Not Available")
+                return True
 
-        if output_path == "":
-            return
+            audio_name = track.get("audio_name")
+            audio_number = track.get("audio_number")
+            artist_name = track.get("artist_name")
+            album_artist = track.get("album_artist")
+            album_name = track.get("album_name")
 
-        print(f"Setting audiotags {filename}")
-        self.tagger.set_audio_tags(
-            output_path,
-            artists=artist_name,
-            name=audio_name,
-            album_name=album_name,
-            release_year=track["release_year"],
-            disc_number=track["disc_number"],
-            track_number=audio_number,
-            album_artist=album_artist,
-            track_id_str=track["scraped_song_id"],
-            image_url=track["image_url"],
-        )
-        print(f"Finished downloading {filename}")
+            filename = self.generate_filename(
+                caller,
+                audio_name,
+                audio_number,
+                artist_name,
+                album_name,
+            )
+
+            base_path = path or self.music_dir
+            if caller == "show" or caller == "episode":
+                base_path = path or self.episodes_dir
+            temp_path = base_path / (filename + "." + self.args.audio_format)
+
+            for ext in (".mp3", ".ogg"):
+                if (
+                    self.not_skip_existing
+                    and (song_path := (base_path / (filename + ext))).exists()
+                ):
+                    db_manager.set_song_downloaded(
+                        track_id, Path(song_path), should_commit=True
+                    )
+                    print(f"Skipping {filename + ext} - Already downloaded")
+                    return True
+
+            output_path = self.respot.download(
+                track_id, temp_path, self.args.audio_format, True
+            )
+
+            if output_path == "":
+                return
+
+            print(f"Setting audiotags {filename}")
+            self.tagger.set_audio_tags(
+                output_path,
+                artists=artist_name,
+                name=audio_name,
+                album_name=album_name,
+                release_year=track["release_year"],
+                disc_number=track["disc_number"],
+                track_number=audio_number,
+                album_artist=album_artist,
+                track_id_str=track["scraped_song_id"],
+                image_url=track["image_url"],
+            )
+
+            db_manager.set_song_downloaded(
+                track_id, Path(output_path), should_commit=True
+            )
+            print(f"Finished downloading {filename}")
+
+        else:
+            print(f"Skipping song {track_id}, already downloaded")
 
     def download_playlist(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
@@ -271,13 +286,17 @@ class ZSpotify:
             self.antiban_wait(self.antiban_album_time)
         print("Finished downloading selected playlists")
 
-    def download_album(self, album_id: SpotifyAlbumId):
+    def download_album(
+        self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
+    ) -> bool:
         if not db_manager.have_album_already_downloaded(album_id):
             album = self.respot.request.get_album_info(album_id)
             if not album:
                 print("Album not found")
                 return False
-            songs = self.respot.request.get_album_songs(album_id)
+
+            songs = self.respot.request.get_album_songs(album_id, artist_id)
+
             if not songs:
                 print("Album is empty")
                 return False
@@ -297,7 +316,10 @@ class ZSpotify:
             # Concat download path
             basepath = self.music_dir / artists / album_name
 
+            self.respot
             for song in songs:
+                # if song already downloaded, skip
+
                 # Append disc number to filepath if more than 1 disc
                 newBasePath = basepath
                 if disc_number_flag:
@@ -312,6 +334,7 @@ class ZSpotify:
             print(f"Finished downloading {album['artists']} - {album['name']} album")
         else:
             print(f"Skipping album {album_id}, already fully downloaded")
+            return False
         return True
 
     def download_artist(self, artist_id: SpotifyArtistId):
@@ -321,8 +344,9 @@ class ZSpotify:
                 print(f"Artist {artist_id} has no albums")
                 return False
             for album_id in albums_ids:
-                self.download_album(album_id)
-                self.antiban_wait(self.antiban_album_time)
+                # only preform antiban wait if we actually downloaded something
+                if self.download_album(album_id, artist_id):
+                    self.antiban_wait(self.antiban_album_time)
 
             db_manager.set_artist_fully_downloaded(artist_id, should_commit=True)
             print(f"Finished downloading {artist_id} artist")
@@ -553,6 +577,7 @@ def main():
         zs.start()
     except KeyboardInterrupt:
         print("Interrupted by user")
+        db_manager.commit()
         db_manager.close_all()
         sys.exit(0)
 

@@ -151,6 +151,10 @@ class RespotAuth:
             self.quality = AudioQuality.HIGH
             print("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
 
+    def get_quality(self) -> AudioQuality:
+        assert self.quality is not None
+        return self.quality
+
 
 class RespotRequest:
     def __init__(self, auth: RespotAuth):
@@ -285,12 +289,37 @@ class RespotRequest:
             "id": playlist_id,
         }
 
-    def get_album_songs(self, album_id):
+    def get_album_songs(
+        self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
+    ) -> list[PackedSongs]:
+        if not db_manager.have_all_album_songs(album_id):
+            print(f"need to request album {album_id}'s songs from spotify")
+            songs = self.request_all_album_songs(album_id, artist_id)
+
+            db_manager.store_album_songs(songs)
+
+            db_manager.set_have_album_songs(album_id, True, should_commit=True)
+
+        return db_manager.get_album_songs(album_id)
+
+    def request_all_album_songs(
+        self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
+    ) -> PackedSongs:
         """Returns album tracklist"""
-        audios = []
+        audios: PackedSongs = []
         offset = 0
         limit = 50
         include_groups = "album,compilation"
+
+        # db only needs song_id, album_id, artist_id, name, quality
+        quality = self.auth.get_quality()
+
+        if quality == AudioQuality.HIGH:
+            quality_kbps = 160
+        elif quality == AudioQuality.VERY_HIGH:
+            quality_kbps = 320
+        else:
+            quality_kbps = 0
 
         while True:
             resp = self.authorized_get_request(
@@ -307,8 +336,11 @@ class RespotRequest:
                     {
                         "id": song["id"],
                         "name": song["name"],
-                        "number": song["track_number"],
+                        "track_number": song["track_number"],
                         "disc_number": song["disc_number"],
+                        "quality_kbps": quality_kbps,
+                        "album_id": album_id,
+                        "artist_id": artist_id,
                     }
                 )
 
@@ -346,13 +378,14 @@ class RespotRequest:
         if not db_manager.have_all_artist_albums(artist_id):
             print(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
-            
+
             db_manager.store_all_artist_albums(artist_id, all_artist_albums)
 
             db_manager.set_have_all_artist_albums(artist_id, True, should_commit=True)
-        
+
         # for consistency, always get result from db
         return db_manager.get_all_artist_albums(artist_id)
+
     def request_all_artist_albums(self, artist_id: SpotifyArtistId) -> PackedAlbums:
         """returns list of albums in an artist"""
 

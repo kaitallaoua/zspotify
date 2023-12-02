@@ -35,11 +35,13 @@ CREATE TABLE IF NOT EXISTS songs (
 	song_id TEXT NOT NULL PRIMARY KEY,
 	album_id TEXT NOT NULL,
 	artist_id TEXT NOT NULL,
-    quality_kbps INTEGER NOT NULL,
 	name TEXT NOT NULL,
+    track_number INTEGER NOT NULL,
+    disc_number INTEGER NOT NULL,
+    quality_kbps INTEGER NOT NULL,
+    full_filepath TEXT DEFAULT NULL,
     download_completed INTEGER NOT NULL DEFAULT 0,
     timestamp_completed TIMESTAMP DEFAULT NULL,
-    full_filepath TEXT,
     FOREIGN KEY (artist_id) 
     REFERENCES artists (artist_id)
        ON UPDATE CASCADE
@@ -70,6 +72,17 @@ CREATE TABLE IF NOT EXISTS fetched_albums (
 );
 """
 
+CREATE_FETCHED_ALBUM_SONGS_TABLE = """
+CREATE TABLE IF NOT EXISTS fetched_songs (
+	album_id TEXT PRIMARY KEY NOT NULL,
+    have_fetched_all_songs_in_album INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (album_id) 
+    REFERENCES albums (album_id)
+       ON UPDATE CASCADE
+       ON DELETE CASCADE
+);
+"""
+
 
 class SQLiteDBManager:
     def __init__(self) -> None:
@@ -90,9 +103,10 @@ class SQLiteDBManager:
         self.cursor.execute(CREATE_SONGS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ARTISTS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ARTIST_ALBUMS_TABLE)
+        self.cursor.execute(CREATE_FETCHED_ALBUM_SONGS_TABLE)
         self.connection.commit()
 
-    def have_all_artist_albums(self, artist_id: SpotifyArtistId):
+    def have_all_artist_albums(self, artist_id: SpotifyArtistId) -> bool:
         fetched = self.cursor.execute(
             "SELECT have_fetched_all_albums FROM fetched_albums WHERE artist_id = ?",
             (artist_id,),
@@ -208,7 +222,7 @@ class SQLiteDBManager:
             return False
         else:
             return True
-        
+
     def have_album_already_downloaded(self, album_id: SpotifyAlbumId) -> bool:
         fetched = self.cursor.execute(
             "SELECT download_completed FROM albums WHERE album_id = ?", (album_id,)
@@ -224,6 +238,102 @@ class SQLiteDBManager:
     def close_all(self) -> None:
         self.cursor.close()
         self.connection.close()
+
+    def have_all_album_songs(self, album_id: SpotifyAlbumId) -> bool:
+        fetched = self.cursor.execute(
+            "SELECT have_fetched_all_songs_in_album FROM fetched_songs WHERE album_id = ?",
+            (album_id,),
+        ).fetchone()
+        if fetched is None or fetched[0] == 0:
+            return False
+        else:
+            return True
+
+    def store_album_songs(
+        self,
+        packed_songs: PackedSongs,
+        should_commit: bool = False,
+    ):
+        for song in packed_songs:
+            self.cursor.execute(
+                "INSERT INTO songs (song_id, album_id, artist_id, name, track_number, disc_number, quality_kbps) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    song["id"],
+                    song["album_id"],
+                    song["artist_id"],
+                    song["name"],
+                    song["track_number"],
+                    song["disc_number"],
+                    song["quality_kbps"],
+                ),
+            )
+        if should_commit:
+            self.connection.commit()
+
+    def set_have_album_songs(
+        self, album_id: SpotifyAlbumId, value: bool, should_commit: bool = False
+    ):
+        param = (
+            album_id,
+            int(value),
+        )  # upsert, insert if none exists, overrite prior with new
+        self.cursor.execute(
+            """INSERT INTO fetched_songs 
+               VALUES (?, ?) ON CONFLICT (album_id) 
+               DO UPDATE SET have_fetched_all_songs_in_album=excluded.have_fetched_all_songs_in_album""",
+            param,
+        )
+        if should_commit:
+            self.connection.commit()
+
+    def get_album_songs(self, album_id: SpotifyAlbumId) -> list[PackedSongs]:
+        # you always get a tuple back, just need to index to the first value
+
+        results = self.cursor.execute(
+            "SELECT song_id, album_id, artist_id, name, track_number, disc_number, quality_kbps FROM songs WHERE album_id = ?",
+            (album_id,),
+        ).fetchall()
+
+        packed_songs = []
+
+        for result in results:
+            packed_songs.append(
+                {
+                    "id": result[0],
+                    "album_id": result[1],
+                    "artist_id": result[2],
+                    "name": result[3],
+                    "track_number": result[4],
+                    "disc_number": result[5],
+                    "quality_kbps": result[6],
+                }
+            )
+
+        return packed_songs
+
+    def set_song_downloaded(
+        self, song_id: SpotifySongId, file_path: Path, should_commit: bool = False
+    ) -> None:
+        self.cursor.execute(
+            """UPDATE songs SET full_filepath = ?, download_completed = ?, timestamp_completed = ? WHERE song_id = ?""",
+            (
+                file_path.absolute().as_posix(),
+                1,
+                datetime.now().astimezone().isoformat(),
+                song_id,
+            ),
+        )
+        if should_commit:
+            self.connection.commit()
+
+    def have_song_downloaded(self, song_id: SpotifySongId) -> bool:
+        fetched = self.cursor.execute(
+            "SELECT download_completed FROM songs WHERE song_id = ?", (song_id,)
+        ).fetchone()
+        if fetched is None or fetched[0] == 0:
+            return False
+        else:
+            return True
 
 
 db_manager = SQLiteDBManager()
