@@ -83,6 +83,14 @@ CREATE TABLE IF NOT EXISTS fetched_songs (
 );
 """
 
+CREATE_CREDENTIALS_TABLE = """
+CREATE TABLE IF NOT EXISTS credentials (
+    id INTEGER PRIMARY KEY CHECK (id = 0),
+    username TEXT NOT NULL,
+    credentials TEXT NOT NULL,
+    type TEXT NOT NULL
+);
+"""
 
 class SQLiteDBManager:
     def __init__(self) -> None:
@@ -104,6 +112,7 @@ class SQLiteDBManager:
         self.cursor.execute(CREATE_FETCHED_ARTISTS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ARTIST_ALBUMS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ALBUM_SONGS_TABLE)
+        self.cursor.execute(CREATE_CREDENTIALS_TABLE)
         self.connection.commit()
 
     def have_all_artist_albums(self, artist_id: SpotifyArtistId) -> bool:
@@ -335,5 +344,14 @@ class SQLiteDBManager:
         else:
             return True
 
+    def upsert_credentials(self, username: str, credentials: str, type: str, should_commit: bool = False) -> None:
+        self.cursor.execute(
+            """INSERT INTO credentials
+               VALUES (?, ?, ?, ?) ON CONFLICT (id) 
+               DO UPDATE SET username=excluded.username, credentials=excluded.credentials, type=excluded.type""",
+            (0, username, credentials, type),
+        )
+        if should_commit:
+            self.connection.commit()
 
 db_manager = SQLiteDBManager()
