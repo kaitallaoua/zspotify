@@ -553,6 +553,7 @@ def main():
         zs.start()
     except KeyboardInterrupt:
         print("Interrupted by user")
+        db_manager.close_all()
         sys.exit(0)
 
 

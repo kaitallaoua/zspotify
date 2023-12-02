@@ -255,22 +255,3 @@ class SQLiteDBManager:
 
 
 db_manager = SQLiteDBManager()
-# a = [("3QJzdZJYIAcoET1GcfpNGi", "damain marley"), ("7lZauDnRoAC3kmaYae2opv", "Dabin"), ("3QJzdZJYIAcoET1GcfpNGi", "damain marley")]
-
-# def removeDuplicates(lst):
-
-#     return [t for t in (set(tuple(i) for i in lst))]
-
-# s = sorted(removeDuplicates(a))
-
-# db_manager.store_all_liked_artists(s, should_commit=True)
-# # print(db_manager.have_all_liked_artists())
-# # db_manager.set_have_all_liked_artist(False, should_commit=True)
-
-# # print(db_manager.have_all_liked_artists())
-# # db_manager.insert_one_into_artists(("abc128899", "tradddvis", 0, datetime.now()))
-# # db_manager.insert_one_into_albums(("albbffd", "abc128899", "crazyalmb", 0, datetime.now(), "/home/mus"))
-# # db_manager.insert_one_into_songs(("song1", "albbffd", "abc128899", 320, "cool", 1, datetime.now(), "/home/ms"))
-# # # db_manager.test()
-# db_manager.commit()
-# db_manager.close_all()
