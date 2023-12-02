@@ -5,7 +5,7 @@ from pathlib import Path
 import importlib.metadata as metadata
 import os
 from .custom_types import *
-
+from .db import db_manager
 from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
 from .utils import FormatUtils
@@ -271,54 +271,63 @@ class ZSpotify:
             self.antiban_wait(self.antiban_album_time)
         print("Finished downloading selected playlists")
 
-    def download_album(self, album_id):
-        album = self.respot.request.get_album_info(album_id)
-        if not album:
-            print("Album not found")
-            return False
-        songs = self.respot.request.get_album_songs(album_id)
-        if not songs:
-            print("Album is empty")
-            return False
-        disc_number_flag = False
-        for song in songs:
-            if song["disc_number"] > 1:
-                disc_number_flag = True
+    def download_album(self, album_id: SpotifyAlbumId):
+        if not db_manager.have_album_already_downloaded(album_id):
+            album = self.respot.request.get_album_info(album_id)
+            if not album:
+                print("Album not found")
+                return False
+            songs = self.respot.request.get_album_songs(album_id)
+            if not songs:
+                print("Album is empty")
+                return False
+            disc_number_flag = False
+            for song in songs:
+                if song["disc_number"] > 1:
+                    disc_number_flag = True
 
-        # Sanitize beforehand
-        artists = RespotUtils.sanitize_data(album["artists"])
-        album_name = RespotUtils.sanitize_data(
-            f"{album['release_date']} - {album['name']}"
-        )
+            # Sanitize beforehand
+            artists = RespotUtils.sanitize_data(album["artists"])
+            album_name = RespotUtils.sanitize_data(
+                f"{album['release_date']} - {album['name']}"
+            )
 
-        print(f"Downloading {artists} - {album_name} album")
+            print(f"Downloading {artists} - {album_name} album")
 
-        # Concat download path
-        basepath = self.music_dir / artists / album_name
+            # Concat download path
+            basepath = self.music_dir / artists / album_name
 
-        for song in songs:
-            # Append disc number to filepath if more than 1 disc
-            newBasePath = basepath
-            if disc_number_flag:
-                disc_number = RespotUtils.sanitize_data(
-                    f"{self.zfill(song['disc_number'])}"
-                )
-                newBasePath = basepath / disc_number
+            for song in songs:
+                # Append disc number to filepath if more than 1 disc
+                newBasePath = basepath
+                if disc_number_flag:
+                    disc_number = RespotUtils.sanitize_data(
+                        f"{self.zfill(song['disc_number'])}"
+                    )
+                    newBasePath = basepath / disc_number
 
-            self.download_track(song["id"], newBasePath, "album")
+                self.download_track(song["id"], newBasePath, "album")
 
-        print(f"Finished downloading {album['artists']} - {album['name']} album")
+            db_manager.set_album_fully_downloaded(album_id, should_commit=True)
+            print(f"Finished downloading {album['artists']} - {album['name']} album")
+        else:
+            print(f"Skipping album {album_id}, already fully downloaded")
         return True
 
     def download_artist(self, artist_id: SpotifyArtistId):
-        albums_ids = self.respot.request.get_artist_albums(artist_id)
-        if not albums_ids:
-            print("Artist has no albums")
-            return False
-        for album_id in albums_ids:
-            self.download_album(album_id)
-            self.antiban_wait(self.antiban_album_time)
-        print(f"Finished downloading {artist_id} artist")
+        if not db_manager.have_artist_already_downloaded(artist_id):
+            albums_ids = self.respot.request.get_artist_albums(artist_id)
+            if not albums_ids:
+                print(f"Artist {artist_id} has no albums")
+                return False
+            for album_id in albums_ids:
+                self.download_album(album_id)
+                self.antiban_wait(self.antiban_album_time)
+
+            db_manager.set_artist_fully_downloaded(artist_id, should_commit=True)
+            print(f"Finished downloading {artist_id} artist")
+        else:
+            print(f"Skipping artist {artist_id}, already fully downloaded")
         return True
 
     def download_all_songs_from_all_liked_artists(self):
