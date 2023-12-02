@@ -6,3 +6,5 @@ SpotifyAlbumId = str
 SpotifySongId = str
 PackedAlbums = list[dict[str, str]]
 PackedSongs = list[dict[str, str | int]]
+
+Credentials = tuple[str, str, str]

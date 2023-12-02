@@ -10,7 +10,6 @@ from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
 from .utils import FormatUtils
 from .arg_parser import parse_args
-from librespot.audio.decoders import AudioQuality
 
 try:
     __version__ = metadata.version("zspotify")
@@ -25,9 +24,8 @@ class ZSpotify:
         self.respot = Respot(
             config_dir=self.args.config_dir,
             force_premium=self.args.force_premium,
-            credentials=self.args.credentials_file,
             audio_format=self.args.audio_format,
-            antiban_wait_time=self.args.antiban_time,
+            antiban_wait_time=self.args.antiban_time
         )
         self.search_limit = self.args.limit
 

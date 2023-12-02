@@ -8,7 +8,7 @@ import shutil
 from typing import List, Optional
 from .db import db_manager
 from .custom_types import *
-
+import tempfile
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
@@ -25,15 +25,12 @@ def removeDuplicates(lst):
 
 
 class Respot:
-    def __init__(
-        self, config_dir, force_premium, credentials, audio_format, antiban_wait_time
-    ):
+    def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
         self.config_dir: Path = config_dir
-        self.credentials: Path = credentials
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
-        self.auth: RespotAuth = RespotAuth(self.credentials, self.force_premium)
+        self.auth: RespotAuth = RespotAuth(self.force_premium)
         self.request: RespotRequest = None
 
     def is_authenticated(self, username=None, password=None) -> bool:
@@ -80,8 +77,7 @@ class Respot:
 
 
 class RespotAuth:
-    def __init__(self, credentials, force_premium):
-        self.credentials = credentials
+    def __init__(self, force_premium):
         self.force_premium = force_premium
         self.session = None
         self.token = None
@@ -89,10 +85,9 @@ class RespotAuth:
         self.quality = None
 
     def login(self, username, password):
-        """Authenticates with Spotify and saves credentials to a file"""
-        self._ensure_credentials_directory()
+        """Authenticates with Spotify and saves credentials to the db"""
 
-        if self._has_stored_credentials():
+        if db_manager.has_stored_credentials():
             return self._authenticate_with_stored_credentials()
         elif username and password:
             return self._authenticate_with_user_pass(username, password)
@@ -100,14 +95,13 @@ class RespotAuth:
             return False
 
     # librespot does not have a function to store credentials.json correctly
-    def _persist_credentials_file(self) -> None:
-        shutil.move("credentials.json", self.credentials)
-
-    def _ensure_credentials_directory(self) -> None:
-        self.credentials.parent.mkdir(parents=True, exist_ok=True)
-
-    def _has_stored_credentials(self):
-        return self.credentials.is_file()
+    def _persist_credentials(self) -> None:
+        creds_file = Path("credentials.json")
+        creds = json.loads(creds_file.read_text())
+        db_manager.upsert_credentials(
+            creds["username"], creds["credentials"], creds["type"], should_commit=True
+        )
+        creds_file.unlink(missing_ok=True)
 
     def _authenticate_with_stored_credentials(self):
         try:
@@ -120,18 +114,28 @@ class RespotAuth:
     def _authenticate_with_user_pass(self, username, password) -> bool:
         try:
             self.session = Session.Builder().user_pass(username, password).create()
-            self._persist_credentials_file()
+            self._persist_credentials()
             self._check_premium()
             return True
         except RuntimeError:
             return False
 
     def refresh_token(self) -> (str, str):
-        self.session = (
-            Session.Builder()
-            .stored_file(stored_credentials=str(self.credentials))
-            .create()
-        )
+        creds = db_manager.get_credentials()
+        assert creds is not None
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            creds_json = {
+                "username": creds[0],
+                "credentials": creds[1],
+                "type": creds[2],
+            }
+
+            json.dump(creds_json, tmp)
+            tmp.flush()
+            self.session = (
+                Session.Builder().stored_file(stored_credentials=tmp.name).create()
+            )
         # Remove auto generated credentials.json
         Path("credentials.json").unlink(missing_ok=True)
         self.token = self.session.tokens().get("user-read-email")

@@ -1,7 +1,7 @@
 # from .types import SpotifyArtistId
 
 import sqlite3
-from typing import Any
+from typing import Optional
 from datetime import datetime
 from pathlib import Path
 
@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS credentials (
     type TEXT NOT NULL
 );
 """
+
 
 class SQLiteDBManager:
     def __init__(self) -> None:
@@ -344,7 +345,9 @@ class SQLiteDBManager:
         else:
             return True
 
-    def upsert_credentials(self, username: str, credentials: str, type: str, should_commit: bool = False) -> None:
+    def upsert_credentials(
+        self, username: str, credentials: str, type: str, should_commit: bool = False
+    ) -> None:
         self.cursor.execute(
             """INSERT INTO credentials
                VALUES (?, ?, ?, ?) ON CONFLICT (id) 
@@ -353,5 +356,14 @@ class SQLiteDBManager:
         )
         if should_commit:
             self.connection.commit()
+
+    def has_stored_credentials(self) -> bool:
+        return self.get_credentials() is not None
+
+    def get_credentials(self) -> Optional[Credentials]:
+        return self.cursor.execute(
+            "SELECT username, credentials, type FROM credentials WHERE id = 0",
+        ).fetchone()
+
 
 db_manager = SQLiteDBManager()

@@ -126,12 +126,6 @@ def parse_args():
         default=True,
     )
     parser.add_argument(
-        "-cf",
-        "--credentials-file",
-        help="File to save the credentials",
-        default=Path.cwd() / "config" / "credentials.json",
-    )
-    parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
     )
 
