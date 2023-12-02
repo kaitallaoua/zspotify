@@ -4,6 +4,7 @@ from getpass import getpass
 from pathlib import Path
 import importlib.metadata as metadata
 import os
+from .custom_types import *
 
 from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
@@ -309,11 +310,7 @@ class ZSpotify:
         print(f"Finished downloading {album['artists']} - {album['name']} album")
         return True
 
-    def download_artist(self, artist_id):
-        artist = self.respot.request.get_artist_info(artist_id)
-        if not artist:
-            print("Artist not found")
-            return False
+    def download_artist(self, artist_id: SpotifyArtistId):
         albums = self.respot.request.get_artist_albums(artist_id)
         if not albums:
             print("Artist has no albums")
@@ -321,7 +318,7 @@ class ZSpotify:
         for album in albums:
             self.download_album(album["id"])
             self.antiban_wait(self.antiban_album_time)
-        print(f"Finished downloading {artist['name']} artist")
+        print(f"Finished downloading {artist_id} artist")
         return True
 
     def download_all_songs_from_all_liked_artists(self):
