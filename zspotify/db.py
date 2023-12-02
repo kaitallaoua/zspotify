@@ -23,7 +23,6 @@ CREATE TABLE IF NOT EXISTS albums (
 	name TEXT NOT NULL,
     download_completed INTEGER NOT NULL DEFAULT 0,
     timestamp_completed TIMESTAMP DEFAULT NULL,
-    full_filepath TEXT,
     FOREIGN KEY (artist_id) 
   	REFERENCES artists (artist_id)
        ON UPDATE CASCADE
@@ -60,6 +59,17 @@ CREATE TABLE IF NOT EXISTS fetched_artists (
 );
 """
 
+CREATE_FETCHED_ARTIST_ALBUMS_TABLE = """
+CREATE TABLE IF NOT EXISTS fetched_albums (
+	artist_id TEXT PRIMARY KEY NOT NULL,
+    have_fetched_all_albums INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (artist_id) 
+    REFERENCES artists (artist_id)
+       ON UPDATE CASCADE
+       ON DELETE CASCADE
+);
+"""
+
 
 class SQLiteDBManager:
     def __init__(self) -> None:
@@ -79,6 +89,7 @@ class SQLiteDBManager:
         self.cursor.execute(CREATE_ALBUMS_TABLE)
         self.cursor.execute(CREATE_SONGS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ARTISTS_TABLE)
+        self.cursor.execute(CREATE_FETCHED_ARTIST_ALBUMS_TABLE)
         self.connection.commit()
 
     def insert_one_into_artists(
@@ -109,6 +120,42 @@ class SQLiteDBManager:
         if should_commit:
             self.connection.commit()
 
+    def have_all_artist_albums(self, artist_id: SpotifyArtistId):
+        fetched = self.cursor.execute(
+            "SELECT have_fetched_all_albums FROM fetched_albums WHERE artist_id = ?", (artist_id,)
+        ).fetchone()
+        if fetched is None or fetched[0] == 0:
+            return False
+        else:
+            return True
+    def store_all_artist_albums(self, artist_id: SpotifyArtistId, packed_albums: PackedAlbums, should_commit: bool = False):
+        
+        for album in packed_albums:
+            self.cursor.execute(
+                "INSERT INTO albums (album_id, artist_id, name) VALUES (?, ?, ?)", (album["id"], artist_id, album["name"])
+            )
+        if should_commit:
+            self.connection.commit()
+
+    def set_have_all_artist_albums(self, artist_id: SpotifyArtistId, value: bool, should_commit: bool = False):
+        param = (
+            artist_id,
+            int(value),
+        )  # upsert, insert if none exists, overrite prior with new
+        self.cursor.execute(
+            """INSERT INTO fetched_albums 
+               VALUES (?, ?) ON CONFLICT (artist_id) 
+               DO UPDATE SET have_fetched_all_albums=excluded.have_fetched_all_albums""",
+            param,
+        )
+        if should_commit:
+            self.connection.commit()
+
+    def get_all_artist_albums(self, artist_id: SpotifyArtistId) -> list[SpotifyAlbumId]:
+        # you always get a tuple back, just need to index to the first value
+
+        result = self.cursor.execute("SELECT album_id FROM albums WHERE artist_id = ?", (artist_id,)).fetchall()
+        return [id[0] for id in result]
     def have_all_liked_artists(self) -> bool:
         fetched = self.cursor.execute(
             "SELECT have_fetched_all_artists FROM fetched_artists"

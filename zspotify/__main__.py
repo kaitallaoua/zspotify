@@ -311,12 +311,12 @@ class ZSpotify:
         return True
 
     def download_artist(self, artist_id: SpotifyArtistId):
-        albums = self.respot.request.get_artist_albums(artist_id)
-        if not albums:
+        albums_ids = self.respot.request.get_artist_albums(artist_id)
+        if not albums_ids:
             print("Artist has no albums")
             return False
-        for album in albums:
-            self.download_album(album["id"])
+        for album_id in albums_ids:
+            self.download_album(album_id)
             self.antiban_wait(self.antiban_album_time)
         print(f"Finished downloading {artist_id} artist")
         return True

@@ -342,40 +342,28 @@ class RespotRequest:
                 "release_date": resp["release_date"],
             }
 
-    def get_artist_albums(self, artists_id):
+    def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
+        if not db_manager.have_all_artist_albums(artist_id):
+            print(f"need to request artist {artist_id}'s albums from spotify")
+            all_artist_albums = self.request_all_artist_albums(artist_id)
+            
+            db_manager.store_all_artist_albums(artist_id, all_artist_albums)
+
+            db_manager.set_have_all_artist_albums(artist_id, True, should_commit=True)
+        
+        # for consistency, always get result from db
+        return db_manager.get_all_artist_albums(artist_id)
+    def request_all_artist_albums(self, artist_id: SpotifyArtistId) -> PackedAlbums:
         """returns list of albums in an artist"""
 
         offset = 0
         limit = 50
         include_groups = "album,compilation,single"
 
-        albums = []
         resp = self.authorized_get_request(
-            f"https://api.spotify.com/v1/artists/{artists_id}/albums",
+            f"https://api.spotify.com/v1/artists/{artist_id}/albums",
             params={"limit": limit, "include_groups": include_groups, "offset": offset},
         ).json()
-        print("###   Albums   ###")
-        for album in resp["items"]:
-            if match := re.search("(\\d{4})", album["release_date"]):
-                print(" #", album["name"])
-                albums.append(
-                    {
-                        "id": album["id"],
-                        "name": album["name"],
-                        "release_date": match.group(1),
-                        "total_tracks": album["total_tracks"],
-                    }
-                )
-            else:
-                print(" #", album["name"])
-                albums.append(
-                    {
-                        "id": album["id"],
-                        "name": album["name"],
-                        "release_date": album["release_date"],
-                        "total_tracks": album["total_tracks"],
-                    }
-                )
         return resp["items"]
 
     def get_liked_tracks(self):
@@ -579,6 +567,7 @@ class RespotRequest:
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
         if not db_manager.have_all_liked_artists():
+            print("need to request liked artists from spotify")
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
