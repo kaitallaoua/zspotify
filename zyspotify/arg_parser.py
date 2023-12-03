@@ -2,8 +2,8 @@ import argparse
 from pathlib import Path
 import os
 
-_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 2)
-_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 2)
+_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 5)
+_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 5)
 _LIMIT_RESULTS = os.environ.get("LIMIT_RESULTS", 10)
 
 
