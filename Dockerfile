@@ -37,4 +37,4 @@ RUN pip install --no-deps *.whl
 # Clean up installation
 RUN rm *.whl
 
-ENTRYPOINT ["zspotify"]
+ENTRYPOINT ["zyspotify"]

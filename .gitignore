@@ -170,3 +170,5 @@ test.py
 
 *.txt
 music
+*.db
+config

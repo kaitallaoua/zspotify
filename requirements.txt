@@ -1,9 +1,9 @@
 git+https://github.com/kokarare1212/librespot-python
-appdirs
-mutagen
-music_tag
-pydub
-Pillow
-tqdm
-setuptools
-requests
+appdirs==1.4.4
+mutagen==1.47.0
+music_tag==0.4.3
+pydub==0.25.1
+Pillow==10.1.0
+tqdm==4.66.1
+setuptools==59.6.0
+requests==2.31.0

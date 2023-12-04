@@ -5,24 +5,32 @@ import re
 import requests
 import time
 import shutil
-
+from typing import List, Optional
+from .db import db_manager
+from .custom_types import *
+import tempfile
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
 from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
 
+SpotifyArtistId = str
+ArtistName = str
+PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
+
+
+def removeDuplicates(lst):
+    return [t for t in (set(tuple(i) for i in lst))]
+
 
 class Respot:
-    def __init__(
-        self, config_dir, force_premium, credentials, audio_format, antiban_wait_time
-    ):
+    def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
         self.config_dir: Path = config_dir
-        self.credentials: Path = credentials
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
-        self.auth: RespotAuth = RespotAuth(self.credentials, self.force_premium)
+        self.auth: RespotAuth = RespotAuth(self.force_premium)
         self.request: RespotRequest = None
 
     def is_authenticated(self, username=None, password=None) -> bool:
@@ -69,8 +77,7 @@ class Respot:
 
 
 class RespotAuth:
-    def __init__(self, credentials, force_premium):
-        self.credentials = credentials
+    def __init__(self, force_premium):
         self.force_premium = force_premium
         self.session = None
         self.token = None
@@ -78,10 +85,9 @@ class RespotAuth:
         self.quality = None
 
     def login(self, username, password):
-        """Authenticates with Spotify and saves credentials to a file"""
-        self._ensure_credentials_directory()
+        """Authenticates with Spotify and saves credentials to the db"""
 
-        if self._has_stored_credentials():
+        if db_manager.has_stored_credentials():
             return self._authenticate_with_stored_credentials()
         elif username and password:
             return self._authenticate_with_user_pass(username, password)
@@ -89,14 +95,13 @@ class RespotAuth:
             return False
 
     # librespot does not have a function to store credentials.json correctly
-    def _persist_credentials_file(self) -> None:
-        shutil.move("credentials.json", self.credentials)
-
-    def _ensure_credentials_directory(self) -> None:
-        self.credentials.parent.mkdir(parents=True, exist_ok=True)
-
-    def _has_stored_credentials(self):
-        return self.credentials.is_file()
+    def _persist_credentials(self) -> None:
+        creds_file = Path("credentials.json")
+        creds = json.loads(creds_file.read_text())
+        db_manager.upsert_credentials(
+            creds["username"], creds["credentials"], creds["type"], should_commit=True
+        )
+        creds_file.unlink(missing_ok=True)
 
     def _authenticate_with_stored_credentials(self):
         try:
@@ -109,18 +114,28 @@ class RespotAuth:
     def _authenticate_with_user_pass(self, username, password) -> bool:
         try:
             self.session = Session.Builder().user_pass(username, password).create()
-            self._persist_credentials_file()
+            self._persist_credentials()
             self._check_premium()
             return True
         except RuntimeError:
             return False
 
     def refresh_token(self) -> (str, str):
-        self.session = (
-            Session.Builder()
-            .stored_file(stored_credentials=str(self.credentials))
-            .create()
-        )
+        creds = db_manager.get_credentials()
+        assert creds is not None
+
+        with tempfile.NamedTemporaryFile(mode="w+") as tmp:
+            creds_json = {
+                "username": creds[0],
+                "credentials": creds[1],
+                "type": creds[2],
+            }
+
+            json.dump(creds_json, tmp)
+            tmp.flush()
+            self.session = (
+                Session.Builder().stored_file(stored_credentials=tmp.name).create()
+            )
         # Remove auto generated credentials.json
         Path("credentials.json").unlink(missing_ok=True)
         self.token = self.session.tokens().get("user-read-email")
@@ -139,6 +154,10 @@ class RespotAuth:
         else:
             self.quality = AudioQuality.HIGH
             print("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
+
+    def get_quality(self) -> AudioQuality:
+        assert self.quality is not None
+        return self.quality
 
 
 class RespotRequest:
@@ -199,8 +218,12 @@ class RespotRequest:
                 "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
                 "album_name": info["tracks"][0]["album"]["name"],
                 "audio_name": info["tracks"][0]["name"],
-                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"] if img_index >= 0 else None,
-                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[0],
+                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
+                if img_index >= 0
+                else None,
+                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
+                    0
+                ],
                 "disc_number": info["tracks"][0]["disc_number"],
                 "audio_number": info["tracks"][0]["track_number"],
                 "scraped_song_id": info["tracks"][0]["id"],
@@ -270,12 +293,37 @@ class RespotRequest:
             "id": playlist_id,
         }
 
-    def get_album_songs(self, album_id):
+    def get_album_songs(
+        self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
+    ) -> list[PackedSongs]:
+        if not db_manager.have_all_album_songs(album_id):
+            print(f"need to request album {album_id}'s songs from spotify")
+            songs = self.request_all_album_songs(album_id, artist_id)
+
+            db_manager.store_album_songs(songs)
+
+            db_manager.set_have_album_songs(album_id, True, should_commit=True)
+
+        return db_manager.get_album_songs(album_id)
+
+    def request_all_album_songs(
+        self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
+    ) -> PackedSongs:
         """Returns album tracklist"""
-        audios = []
+        audios: PackedSongs = []
         offset = 0
         limit = 50
         include_groups = "album,compilation"
+
+        # db only needs song_id, album_id, artist_id, name, quality
+        quality = self.auth.get_quality()
+
+        if quality == AudioQuality.HIGH:
+            quality_kbps = 160
+        elif quality == AudioQuality.VERY_HIGH:
+            quality_kbps = 320
+        else:
+            quality_kbps = 0
 
         while True:
             resp = self.authorized_get_request(
@@ -292,8 +340,11 @@ class RespotRequest:
                     {
                         "id": song["id"],
                         "name": song["name"],
-                        "number": song["track_number"],
+                        "track_number": song["track_number"],
                         "disc_number": song["disc_number"],
+                        "quality_kbps": quality_kbps,
+                        "album_id": album_id,
+                        "artist_id": artist_id,
                     }
                 )
 
@@ -327,40 +378,29 @@ class RespotRequest:
                 "release_date": resp["release_date"],
             }
 
-    def get_artist_albums(self, artists_id):
+    def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
+        if not db_manager.have_all_artist_albums(artist_id):
+            print(f"need to request artist {artist_id}'s albums from spotify")
+            all_artist_albums = self.request_all_artist_albums(artist_id)
+
+            db_manager.store_all_artist_albums(artist_id, all_artist_albums)
+
+            db_manager.set_have_all_artist_albums(artist_id, True, should_commit=True)
+
+        # for consistency, always get result from db
+        return db_manager.get_all_artist_albums(artist_id)
+
+    def request_all_artist_albums(self, artist_id: SpotifyArtistId) -> PackedAlbums:
         """returns list of albums in an artist"""
 
         offset = 0
         limit = 50
         include_groups = "album,compilation,single"
 
-        albums = []
         resp = self.authorized_get_request(
-            f"https://api.spotify.com/v1/artists/{artists_id}/albums",
+            f"https://api.spotify.com/v1/artists/{artist_id}/albums",
             params={"limit": limit, "include_groups": include_groups, "offset": offset},
         ).json()
-        print("###   Albums   ###")
-        for album in resp["items"]:
-            if match := re.search("(\\d{4})", album["release_date"]):
-                print(" #", album["name"])
-                albums.append(
-                    {
-                        "id": album["id"],
-                        "name": album["name"],
-                        "release_date": match.group(1),
-                        "total_tracks": album["total_tracks"],
-                    }
-                )
-            else:
-                print(" #", album["name"])
-                albums.append(
-                    {
-                        "id": album["id"],
-                        "name": album["name"],
-                        "release_date": album["release_date"],
-                        "total_tracks": album["total_tracks"],
-                    }
-                )
         return resp["items"]
 
     def get_liked_tracks(self):
@@ -561,11 +601,22 @@ class RespotRequest:
                 "playlists": ret_playlists,
                 "artists": ret_artists,
             }
-    
-    def get_all_liked_artists(self):
-        
-        # sets do not allow duplicates
-        liked_artist_ids = set()
+
+    def get_all_liked_artists(self) -> List[SpotifyArtistId]:
+        if not db_manager.have_all_liked_artists():
+            print("need to request liked artists from spotify")
+            all_liked_spotify_artists = self.request_all_liked_artists()
+
+            # store in db
+            db_manager.store_all_liked_artists(all_liked_spotify_artists)
+
+            db_manager.set_have_all_liked_artist(True, should_commit=True)
+
+        # for consistency, always get result from db
+        return db_manager.get_all_liked_artist_ids()
+
+    def request_all_liked_artists(self) -> List[PackedArtists]:
+        packed_artists: PackedArtists = []
         offset = 0
         limit = 50
 
@@ -577,13 +628,22 @@ class RespotRequest:
             ).json()
 
             offset += limit
-            for song in resp["items"]:
-                liked_artist_ids.add(str(song['track']['artists'][0]['id']))
-
+            try:
+                for song in resp["items"]:
+                    id = str(song["track"]["artists"][0]["id"])
+                    name = str(song["track"]["artists"][0]["name"])
+                    packed_artists.append((id, name))
+            except KeyError:
+                print(f"Failed to get liked artists for offset: {offset}, continuing")
+                continue
             if len(resp["items"]) < limit:
                 break
 
-        return liked_artist_ids
+        # insert all these artists into artist table
+        # upsert all artists table so next time we dont have to call this
+
+        return sorted(removeDuplicates(packed_artists))
+
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
@@ -680,14 +740,14 @@ class RespotTrackHandler:
         audio_bytes.seek(0)
         magic_bytes = audio_bytes.read(16)
 
-        if magic_bytes.startswith(b'\xFF\xFB') or magic_bytes.startswith(b'\xFF\xFA'):
-            return 'mp3'
-        elif b'RIFF' in magic_bytes and b'WAVE' in magic_bytes:
-            return 'wav'
-        elif magic_bytes.startswith(b'fLaC'):
-            return 'flac'
-        elif magic_bytes.startswith(b'OggS'):
-            return 'ogg'
+        if magic_bytes.startswith(b"\xFF\xFB") or magic_bytes.startswith(b"\xFF\xFA"):
+            return "mp3"
+        elif b"RIFF" in magic_bytes and b"WAVE" in magic_bytes:
+            return "wav"
+        elif magic_bytes.startswith(b"fLaC"):
+            return "flac"
+        elif magic_bytes.startswith(b"OggS"):
+            return "ogg"
         else:
             raise ValueError("The audio stream is malformed.")
 
