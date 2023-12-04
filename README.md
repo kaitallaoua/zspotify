@@ -12,6 +12,7 @@ ZYSpotify is a Spotify downloader that enables users to find and download (a lot
 
 - [x] Use sqlite3 db instead of json archive
 - [x] Put credentials in db
+- [ ] Add spotify liked songs playlist importer for plex
 - [ ] Ensure pip install works
 - [ ] Get all other switches working
 - [ ] Use logging libary instead of printing
