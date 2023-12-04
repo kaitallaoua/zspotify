@@ -4,9 +4,9 @@ import json
 import re
 import requests
 import time
-import shutil
-from typing import List, Optional
+from typing import List
 from .db import db_manager
+from .utils import FormatUtils
 from .custom_types import *
 import tempfile
 from librespot.audio.decoders import AudioQuality, VorbisOnlyAudioQuality
@@ -361,7 +361,7 @@ class RespotRequest:
 
         artists = []
         for artist in resp["artists"]:
-            artists.append(RespotUtils.sanitize_data(artist["name"]))
+            artists.append(FormatUtils.sanitize_data(artist["name"]))
 
         if match := re.search("(\\d{4})", resp["release_date"]):
             return {
@@ -441,7 +441,7 @@ class RespotRequest:
             )
 
             return {
-                "name": RespotUtils.sanitize_data(info["name"]),
+                "name": FormatUtils.sanitize_data(info["name"]),
                 "genres": RespotUtils.conv_artist_format(info["genres"]),
             }
         except Exception as e:
@@ -467,8 +467,8 @@ class RespotRequest:
             "id": episode_id_str,
             "artist_id": info["show"]["id"],
             "artist_name": info["show"]["publisher"],
-            "show_name": RespotUtils.sanitize_data(info["show"]["name"]),
-            "audio_name": RespotUtils.sanitize_data(info["name"]),
+            "show_name": FormatUtils.sanitize_data(info["show"]["name"]),
+            "audio_name": FormatUtils.sanitize_data(info["name"]),
             "image_url": info["images"][img_index]["url"] if img_index >= 0 else None,
             "release_year": info["release_date"].split("-")[0],
             "disc_number": None,
@@ -510,7 +510,7 @@ class RespotRequest:
             f"https://api.spotify.com/v1/shows/{show_id}"
         ).json()
         return {
-            "name": RespotUtils.sanitize_data(resp["name"]),
+            "name": FormatUtils.sanitize_data(resp["name"]),
             "publisher": resp["publisher"],
             "id": resp["id"],
             "total_episodes": resp["total_episodes"],
@@ -868,12 +868,3 @@ class RespotUtils:
     def conv_artist_format(artists: list) -> str:
         """Returns string of artists separated by commas"""
         return ", ".join(artists)
-
-    @staticmethod
-    def sanitize_data(value: str) -> str:
-        """Returns the string with problematic characters removed."""
-        SANITIZE_CHARS = ["\\", "/", ":", "*", "?", "'", "<", ">", '"', "|"]
-
-        for char in SANITIZE_CHARS:
-            value = value.replace(char, "" if char != "|" else "-")
-        return value

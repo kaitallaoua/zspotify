@@ -136,7 +136,7 @@ class ZSpotify:
             filename = f"{artist_name} - {audio_name}"
 
         filename = self.shorten_filename(filename, artist_name, audio_name)
-        filename = RespotUtils.sanitize_data(filename)
+        filename = FormatUtils.sanitize_data(filename)
 
         return filename
 
@@ -224,7 +224,7 @@ class ZSpotify:
         if playlist_name == "":
             playlist_name = playlist_id
         print(f"Downloading {playlist_name} playlist")
-        basepath = self.music_dir / RespotUtils.sanitize_data(playlist_name)
+        basepath = self.music_dir / FormatUtils.sanitize_data(playlist_name)
         for song in songs:
             self.download_track(song["id"], basepath, "playlist")
         print(f"Finished downloading {playlist['name']} playlist")
@@ -304,8 +304,8 @@ class ZSpotify:
                     disc_number_flag = True
 
             # Sanitize beforehand
-            artists = RespotUtils.sanitize_data(album["artists"])
-            album_name = RespotUtils.sanitize_data(
+            artists = FormatUtils.sanitize_data(album["artists"])
+            album_name = FormatUtils.sanitize_data(
                 f"{album['release_date']} - {album['name']}"
             )
 
@@ -321,7 +321,7 @@ class ZSpotify:
                 # Append disc number to filepath if more than 1 disc
                 newBasePath = basepath
                 if disc_number_flag:
-                    disc_number = RespotUtils.sanitize_data(
+                    disc_number = FormatUtils.sanitize_data(
                         f"{self.zfill(song['disc_number'])}"
                     )
                     newBasePath = basepath / disc_number
@@ -513,7 +513,6 @@ class ZSpotify:
                 else:
                     self.download_album(album)
         elif self.args.artist:
-            raise NotImplementedError()
             for artist in self.split_input(self.args.artist):
                 if "spotify.com" in self.args.artist:
                     self.download_by_url(artist)

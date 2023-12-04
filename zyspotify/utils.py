@@ -11,5 +11,5 @@ class FormatUtils:
         SANITIZE_CHARS = ["\\", "/", ":", "*", "?", "'", "<", ">", '"', "|"]
 
         for char in SANITIZE_CHARS:
-            value = value.replace(char, "" if char != "|" else "-")
+            value = value.replace(char, " " if char != "|" else "-")
         return value
