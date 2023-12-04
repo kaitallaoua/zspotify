@@ -95,12 +95,12 @@ class ZSpotify:
         return True
 
     @staticmethod
-    def shorten_filename(filename, artist_name, audio_name, max_length=50):
+    def shorten_filename(filename, artist_name, audio_name, max_length=75):
+
         if len(filename) > max_length and len(artist_name) > (max_length // 2):
             filename = filename.replace(artist_name, "Various Artists")
         else:
-            excess_length = len(filename) - max_length
-            truncated_audio_name = audio_name[:-excess_length]
+            truncated_audio_name = audio_name[:max_length]
             filename = filename.replace(audio_name, truncated_audio_name)
 
         return filename
