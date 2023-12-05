@@ -101,7 +101,7 @@ class SQLiteDBManager:
         Path.mkdir(db_dir, parents=True, exist_ok=True)
 
         self.connection = sqlite3.connect(
-            db_dir / "zspotify.db",
+            db_dir / "zyspotify.db",
             detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
         )
         self.connection.execute("PRAGMA foreign_keys = 1")
