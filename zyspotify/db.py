@@ -327,7 +327,7 @@ class SQLiteDBManager:
         self.cursor.execute(
             """UPDATE songs SET full_filepath = ?, download_completed = ?, timestamp_completed = ? WHERE song_id = ?""",
             (
-                file_path.absolute().as_posix(),
+                file_path.as_posix(),
                 1,
                 datetime.now().astimezone().isoformat(),
                 song_id,
