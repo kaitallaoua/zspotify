@@ -9,7 +9,7 @@ assignees: ''
 
 <!--
 Before posting your issue, please check the README.md for informations:
-    https://github.com/jsavargas/zspotify/blob/master/README.md
+    https://github.com/kaitallaoua/zyspotify/blob/master/README.md
 -->
 
 **Environment (please complete the following information):**
