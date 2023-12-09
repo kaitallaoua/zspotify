@@ -23,7 +23,6 @@ ZYSpotify is a Spotify downloader that enables users to find and download (a lot
 - [ ] Use code coverage/test suites
 
 
-
 ## Installation
 ### Recommended: use virtual enviroments
 Clone the repo, pip install the requirements and follow the usage below
@@ -57,6 +56,9 @@ to discuss what you would like to change.
 
 - [GitHub Issues](https://github.com/kaitallaoua/zyspotify/issues) of this repository.
 - [Discussions](https://github.com/kaitallaoua/zyspotify/discussions) of this repository.
+
+## Known oddities/issues
+- `artist_id` columns in `albums` and `songs` tables are missing featured artists (e.g. when more than one artist is on an album/song), currently only the first artist downloaded will have their artist_id take place here. The current fix is to just ignore repeated insert attempts for another artist on that item is set to be downloaded. **Songs are not missed/ignored from being downloaded**, rather the `artist_id` will **only and always** be that one artist. This could be improved upon by inserting new artist compound id's like: `abc123-abc123-...` for the first insertion but the rationale right now is if you require detailed metadata, just request it from spotify and take what you need. PR's are welcome to clean this up. Low priority since it does not affect any operations, just artist metadata is not as accurate as it could be.
 
 ## Acknowledgements
 
