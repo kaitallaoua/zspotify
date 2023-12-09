@@ -134,7 +134,7 @@ class SQLiteDBManager:
     ):
         for album in packed_albums:
             self.cursor.execute(
-                "INSERT INTO albums (album_id, artist_id, name) VALUES (?, ?, ?)",
+                "INSERT OR IGNORE INTO albums (album_id, artist_id, name) VALUES (?, ?, ?)",
                 (album["id"], artist_id, album["name"]),
             )
         if should_commit:
@@ -266,7 +266,7 @@ class SQLiteDBManager:
     ):
         for song in packed_songs:
             self.cursor.execute(
-                "INSERT INTO songs (song_id, album_id, artist_id, name, track_number, disc_number, quality_kbps) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT OR IGNORE INTO songs (song_id, album_id, artist_id, name, track_number, disc_number, quality_kbps) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     song["id"],
                     song["album_id"],
