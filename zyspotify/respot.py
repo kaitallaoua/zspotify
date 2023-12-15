@@ -23,7 +23,9 @@ PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
 def removeDuplicates(lst):
     return [t for t in (set(tuple(i) for i in lst))]
 
+
 API_ME = "https://api.spotify.com/v1/me/"
+
 
 class Respot:
     def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
@@ -82,7 +84,7 @@ class RespotAuth:
         self.force_premium = force_premium
         self.session = None
         self.token = None
-        self.token_your_libary = None
+        self.token_your_library = None
         self.quality = None
 
     def login(self, username, password):
@@ -140,8 +142,8 @@ class RespotAuth:
         # Remove auto generated credentials.json
         Path("credentials.json").unlink(missing_ok=True)
         self.token = self.session.tokens().get("user-read-email")
-        self.token_your_libary = self.session.tokens().get("user-library-read")
-        return (self.token, self.token_your_libary)
+        self.token_your_library = self.session.tokens().get("user-library-read")
+        return (self.token, self.token_your_library)
 
     def _check_premium(self) -> None:
         """If user has Spotify premium, return true"""
@@ -165,7 +167,7 @@ class RespotRequest:
     def __init__(self, auth: RespotAuth):
         self.auth = auth
         self.token = auth.token
-        self.token_your_libary = auth.token_your_libary
+        self.token_your_library = auth.token_your_library
 
     def authorized_get_request(self, url: str, retry_count: int = 0, **kwargs):
         if retry_count > 3:
@@ -173,19 +175,19 @@ class RespotRequest:
 
         try:
             response = requests.get(
-                url, headers={"Authorization": f"Bearer {self.token_your_libary if url.startswith(API_ME) else self.token}"}, **kwargs
+                url,
+                headers={
+                    "Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"
+                },
+                **kwargs,
             )
             if response.status_code == 401:
                 print("Token expired, refreshing...")
-                self.token, self.token_your_libary = self.auth.refresh_token()
-                return self.authorized_get_request(
-                    url, retry_count + 1, **kwargs
-                )
+                self.token, self.token_your_library = self.auth.refresh_token()
+                return self.authorized_get_request(url, retry_count + 1, **kwargs)
             return response
         except requests.exceptions.ConnectionError:
-            return self.authorized_get_request(
-                url, retry_count + 1, **kwargs
-            )
+            return self.authorized_get_request(url, retry_count + 1, **kwargs)
 
     def get_track_info(self, track_id) -> dict:
         """Retrieves metadata for downloaded songs"""
