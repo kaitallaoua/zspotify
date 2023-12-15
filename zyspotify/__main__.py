@@ -142,7 +142,10 @@ class ZSpotify:
 
     def download_track(self, track_id, path=None, caller=None):
         if not db_manager.have_song_downloaded(track_id):
-            track = self.respot.request.get_track_info(track_id)
+            if caller == "show" or caller == "episode":
+                track = self.respot.request.get_episode_info(track_id)
+            else:
+                track = self.respot.request.get_track_info(track_id)
 
             if track is None:
                 print(f"Skipping {track_id} - Could not get track info")
