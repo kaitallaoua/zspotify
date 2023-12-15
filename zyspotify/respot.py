@@ -23,6 +23,7 @@ PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
 def removeDuplicates(lst):
     return [t for t in (set(tuple(i) for i in lst))]
 
+API_ME = "https://api.spotify.com/v1/me/"
 
 class Respot:
     def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
@@ -166,25 +167,24 @@ class RespotRequest:
         self.token = auth.token
         self.token_your_libary = auth.token_your_libary
 
-    def authorized_get_request(self, url, token_bearer=None, retry_count=0, **kwargs):
+    def authorized_get_request(self, url: str, retry_count: int = 0, **kwargs):
         if retry_count > 3:
             raise RuntimeError("Connection Error: Too many retries")
 
-        token_bearer = token_bearer or self.token
         try:
             response = requests.get(
-                url, headers={"Authorization": f"Bearer {token_bearer}"}, **kwargs
+                url, headers={"Authorization": f"Bearer {self.token_your_libary if url.startswith(API_ME) else self.token}"}, **kwargs
             )
             if response.status_code == 401:
                 print("Token expired, refreshing...")
                 self.token, self.token_your_libary = self.auth.refresh_token()
                 return self.authorized_get_request(
-                    url, token_bearer, retry_count + 1, **kwargs
+                    url, retry_count + 1, **kwargs
                 )
             return response
         except requests.exceptions.ConnectionError:
             return self.authorized_get_request(
-                url, token_bearer, retry_count + 1, **kwargs
+                url, retry_count + 1, **kwargs
             )
 
     def get_track_info(self, track_id) -> dict:
@@ -245,7 +245,7 @@ class RespotRequest:
 
         while True:
             resp = self.authorized_get_request(
-                "https://api.spotify.com/v1/me/playlists",
+                API_ME + "playlists",
                 params={"limit": limit, "offset": offset},
             ).json()
             offset += limit
@@ -411,8 +411,7 @@ class RespotRequest:
 
         while True:
             resp = self.authorized_get_request(
-                "https://api.spotify.com/v1/me/tracks",
-                self.token_your_libary,
+                API_ME + "tracks",
                 params={"limit": limit, "offset": offset},
             ).json()
             offset += limit
@@ -622,8 +621,7 @@ class RespotRequest:
 
         while True:
             resp = self.authorized_get_request(
-                "https://api.spotify.com/v1/me/tracks",
-                self.token_your_libary,
+                API_ME + "tracks",
                 params={"limit": limit, "offset": offset},
             ).json()
 
