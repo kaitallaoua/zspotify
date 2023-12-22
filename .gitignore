@@ -173,3 +173,4 @@ music
 *.db
 config
 Music
+/docker-compose.yml

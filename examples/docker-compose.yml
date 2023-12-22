@@ -2,6 +2,10 @@ version: "3"
 services:
   zyspotify:
     image: kaitallaoua/zyspotify
+
+    # bind to a vpn container already running if desired
+    # such as https://github.com/wfg/docker-openvpn-client
+    # network_mode: container:openvpn-client
     volumes:
       - ./config:/root/config
       - ./Music:/root/Music
