@@ -1,4 +1,4 @@
-FROM python:3.11-alpine as builder
+FROM python:3.12-alpine as builder
 
 WORKDIR /app
 
@@ -8,7 +8,7 @@ RUN apk add --no-cache git ffmpeg
 # armv7 needs these
 RUN apk add --no-cache gcc libc-dev zlib zlib-dev jpeg-dev
 
-# Build ZSpotify and it's dependencies into wheels
+# Build ZYSpotify and it's dependencies into wheels
 RUN pip install build wheel
 RUN mkdir -p /app/wheels
 RUN pip wheel -w /app/wheels .
@@ -21,7 +21,7 @@ RUN mkdir -p /app/ffmpeg-deps \
     | grep -v 'ld-musl-x86_64.so.1' \
     | xargs -I '{}' cp -v '{}' .
 
-FROM python:3.11-alpine
+FROM python:3.12-alpine
 
 # Copy over ffmpeg and its dependencies
 COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
