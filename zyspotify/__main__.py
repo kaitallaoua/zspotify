@@ -1,5 +1,6 @@
 import sys
 import time
+from requests import get
 from getpass import getpass
 from pathlib import Path
 import importlib.metadata as metadata
@@ -492,6 +493,8 @@ class ZSpotify:
         if self.args.version:
             print(f"ZSpotify {__version__}")
             return
+
+        print(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
 
         self.splash()
         while not self.login():
