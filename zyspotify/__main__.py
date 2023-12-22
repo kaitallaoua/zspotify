@@ -13,14 +13,14 @@ from .utils import FormatUtils
 from .arg_parser import parse_args
 
 try:
-    __version__ = metadata.version("zspotify")
+    __version__ = metadata.version("zyspotify")
 except metadata.PackageNotFoundError:
     __version__ = "unknown"
 
 _USERNAME = os.environ.get("USERNAME", None)
 _PASSWORD = os.environ.get("PASSWORD", None)
 
-class ZSpotify:
+class ZYSpotify:
     def __init__(self):
         self.SEPARATORS = [",", ";"]
         self.args = parse_args()
@@ -491,7 +491,7 @@ class ZSpotify:
     def start(self):
         """Main client loop"""
         if self.args.version:
-            print(f"ZSpotify {__version__}")
+            print(f"ZYSpotify {__version__}")
             return
 
         print(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
@@ -580,11 +580,11 @@ class ZSpotify:
 
 
 def main():
-    """Creates an instance of ZSpotify"""
-    zs = ZSpotify()
+    """Creates an instance of ZYSpotify"""
+    zys = ZYSpotify()
 
     try:
-        zs.start()
+        zys.start()
     except KeyboardInterrupt:
         print("Interrupted by user")
         db_manager.commit()

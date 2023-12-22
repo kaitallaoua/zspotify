@@ -69,18 +69,18 @@ def parse_args():
         "-md",
         "--music-dir",
         help="Folder to save the downloaded music files",
-        default=Path.home() / "Music" / "ZSpotify Music",
+        default=Path.home() / "Music" / "ZYSpotify Music",
     )
     parser.add_argument(
         "-pd",
         "--episodes-dir",
         help="Folder to save the downloaded episodes files",
-        default=Path.home() / "Music" / "ZSpotify Podcast",
+        default=Path.home() / "Music" / "ZYSpotify Podcast",
     )
     parser.add_argument(
         "-v",
         "--version",
-        help="Shows the current version of ZSpotify and exit",
+        help="Shows the current version of ZYSpotify and exit",
         action="store_true",
     )
     parser.add_argument(
