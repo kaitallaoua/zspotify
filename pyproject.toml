@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zyspotify"
-version = "2.1.0"
+version = "3.0.0"
 authors = [
     {"name" = "Jonathan Salinas Vargas"},
     {"name" = "Yuriy Kovrigin"},
@@ -12,7 +12,7 @@ authors = [
 ]
 description = "Spotify song downloader without injecting into the windows client"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["downloader", "music", "spotify", "zyspotify"]
 license = {text = "GPL-3.0-only"}
 classifiers = [

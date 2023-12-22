@@ -1,4 +1,19 @@
 # Changelog
+**v3.0.0 (22 Dec 2023)**
+
+Overdue for a new version!
+- Use sqlite3 instead of json archive file (only one switch is supported at the moment)
+- Put credentials inside db
+- Added download all songs from all liked artists switch
+- Rename project to zyspotify
+- Fix unexpected filename truncation
+- Fix repeated song and album inserts for featured artists
+- Fix auth token refresh
+- Manual upstream fix pull: main: Fix getting episode info 
+- Use never python Docker image (3.12 over 3.11)
+- Get docker image built and CI working
+- Add Public Ip print at program startup for vpn debugging
+
 
 **v2.1.0 (29 Sep 2023)**
 - Use never python Docker image

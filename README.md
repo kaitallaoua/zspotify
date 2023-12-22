@@ -25,7 +25,7 @@ ZYSpotify is a Spotify downloader that enables users to find and download (a lot
 
 
 ## Installation
-
+Tested with versions `3.10 <= python <= 3.12`, however slightly older versions probably work.
 ### Docker
 
 
