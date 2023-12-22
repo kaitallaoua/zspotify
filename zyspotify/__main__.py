@@ -20,6 +20,7 @@ except metadata.PackageNotFoundError:
 _USERNAME = os.environ.get("USERNAME", None)
 _PASSWORD = os.environ.get("PASSWORD", None)
 
+
 class ZYSpotify:
     def __init__(self):
         self.SEPARATORS = [",", ";"]
@@ -28,7 +29,7 @@ class ZYSpotify:
             config_dir=self.args.config_dir,
             force_premium=self.args.force_premium,
             audio_format=self.args.audio_format,
-            antiban_wait_time=self.args.antiban_time
+            antiban_wait_time=self.args.antiban_time,
         )
         self.search_limit = self.args.limit
 
@@ -90,7 +91,6 @@ class ZYSpotify:
     def login(self):
         """Login to Spotify"""
         while not self.respot.is_authenticated():
-
             if _USERNAME is not None and _PASSWORD is not None:
                 username = _USERNAME
                 password = _PASSWORD
@@ -104,7 +104,6 @@ class ZYSpotify:
 
     @staticmethod
     def shorten_filename(filename, artist_name, audio_name, max_length=75):
-
         if len(filename) > max_length and len(artist_name) > (max_length // 2):
             filename = filename.replace(artist_name, "Various Artists")
         else:
