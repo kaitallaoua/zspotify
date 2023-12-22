@@ -16,6 +16,8 @@ try:
 except metadata.PackageNotFoundError:
     __version__ = "unknown"
 
+_USERNAME = os.environ.get("USERNAME", None)
+_PASSWORD = os.environ.get("PASSWORD", None)
 
 class ZSpotify:
     def __init__(self):
@@ -87,9 +89,14 @@ class ZSpotify:
     def login(self):
         """Login to Spotify"""
         while not self.respot.is_authenticated():
-            print("Login to Spotify")
-            username = input("Username: ")
-            password = getpass("Password: ")
+
+            if _USERNAME is not None and _PASSWORD is not None:
+                username = _USERNAME
+                password = _PASSWORD
+            else:
+                print("Login to Spotify")
+                username = input("Username: ")
+                password = getpass("Password: ")
             if self.respot.is_authenticated(username, password):
                 return True
         return True

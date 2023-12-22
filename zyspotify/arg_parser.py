@@ -2,8 +2,8 @@ import argparse
 from pathlib import Path
 import os
 
-_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 5)
-_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 5)
+_ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 4)
+_ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 4)
 _LIMIT_RESULTS = os.environ.get("LIMIT_RESULTS", 10)
 
 
@@ -57,7 +57,7 @@ def parse_args():
         "-cd",
         "--config-dir",
         help="Folder to save the config files",
-        default=Path.cwd() / "config",
+        default=Path.home() / "config",
     )
     parser.add_argument(
         "-d",

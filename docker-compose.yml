@@ -1,7 +1,12 @@
 version: "3"
 services:
-  zspotify:
-    image: jsavargas/zspotify
+  zyspotify:
+    image: kaitallaoua/zyspotify
     volumes:
-      # - ${HOME}/.zspotify:/root/.zspotify
-      - ${HOME}/Music:/root/Music
+      - ./config:/root/config
+      - ./Music:/root/Music
+    environment:
+
+      # These should be removed after the first run. since credentials cached in db
+      - USERNAME=example@gmail.com
+      - PASSWORD=hunter2
