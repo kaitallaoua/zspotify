@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import os
+import logging
 
 _ANTI_BAN_WAIT_TIME = os.environ.get("ANTI_BAN_WAIT_TIME", 4)
 _ANTI_BAN_WAIT_TIME_ALBUMS = os.environ.get("ANTI_BAN_WAIT_TIME_ALBUMS", 4)
@@ -59,6 +60,14 @@ def parse_args():
         help="Folder to save the config files",
         default=Path.home() / "config",
     )
+
+    parser.add_argument(
+        "-ld",
+        "--log-dir",
+        help="Folder to save the log files",
+        default=Path.home() / "zyspotify_log",
+    )
+
     parser.add_argument(
         "-d",
         "--download-dir",
@@ -128,5 +137,24 @@ def parse_args():
     parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
     )
-
+    parser.add_argument(
+        "-mlsb",
+        "--max-log-size-bytes",
+        help="Maximum size of log file in bytes.",
+        default=10*1024*1024,
+    )
+    parser.add_argument(
+        "-lfl",
+        "--log-file-level",
+        help="Level of logging for log file",
+        default="WARNING",
+        choices=logging._nameToLevel.keys(),
+    )
+    parser.add_argument(
+        "-sll",
+        "--stdout-log-level",
+        help="Level of logging for stdout (console)",
+        default="INFO",
+        choices=logging._nameToLevel.keys(),
+    )
     return parser.parse_args()

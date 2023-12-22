@@ -11,6 +11,9 @@ from .respot import Respot, RespotUtils
 from .tagger import AudioTagger
 from .utils import FormatUtils
 from .arg_parser import parse_args
+import logging
+from logging.handlers import RotatingFileHandler
+from logging.config import dictConfig
 
 try:
     __version__ = metadata.version("zyspotify")
@@ -20,6 +23,10 @@ except metadata.PackageNotFoundError:
 _USERNAME = os.environ.get("USERNAME", None)
 _PASSWORD = os.environ.get("PASSWORD", None)
 
+# using __name__ instead of the root logger seems to be the "proper" way, but:
+# librespot logs crap to INFO that we don't care about
+# same logger config's would need to be done in each module, which is nasty
+logger = logging.getLogger()
 
 class ZYSpotify:
     def __init__(self):
@@ -43,6 +50,32 @@ class ZYSpotify:
         self.antiban_album_time = self.args.antiban_album
         self.not_skip_existing = self.args.not_skip_existing
         self.tagger = AudioTagger()
+
+        self.log_dir_path = Path(self.args.log_dir)
+        self.log_dir_path.mkdir(exist_ok=True)
+
+
+        """
+        TLDR: log level WARNING and up to a file by default, and to stdout level INFO and up by default
+        """
+
+        # should remain root logger, ideally actual logger entries use "__name__"
+        logger = logging.getLogger("root")
+
+        # remove librespot info logging junk
+        dictConfig({"version": 1, "disable_existing_loggers":True})
+
+        log_file_handler = RotatingFileHandler((self.log_dir_path / "zyspotify.log"), maxBytes=int(self.args.max_log_size_bytes))
+        log_file_handler.setFormatter(logging.Formatter("%(levelname)s - [%(asctime)s] - {%(filename)s:%(funcName)s:%(lineno)d}: %(message)s", "%Y-%m-%dT%H:%M:%S%z"))
+        log_file_handler.setLevel(self.args.log_file_level)
+        logger.addHandler(log_file_handler)
+
+        stdout_handler = logging.StreamHandler(sys.stdout)
+        stdout_handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
+        stdout_handler.setLevel(self.args.stdout_log_level)
+        logger.addHandler(stdout_handler)
+
+        logger.setLevel(logging.INFO) # INFO or higher gets sent to stdout
 
     def splash(self):
         """Displays splash screen"""
@@ -493,7 +526,7 @@ class ZYSpotify:
             print(f"ZYSpotify {__version__}")
             return
 
-        print(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
+        logger.debug(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
 
         self.splash()
         while not self.login():
