@@ -431,25 +431,6 @@ class RespotRequest:
 
         return songs
 
-    def get_artist_info(self, artist_id):
-        """Retrieves metadata for downloaded songs"""
-
-        try:
-            info = json.loads(
-                self.authorized_get_request(
-                    "https://api.spotify.com/v1/artists/" + artist_id
-                ).text
-            )
-
-            return {
-                "name": FormatUtils.sanitize_data(info["name"]),
-                "genres": RespotUtils.conv_artist_format(info["genres"]),
-            }
-        except Exception as e:
-            print("###   get_artist_info - FAILED TO QUERY METADATA   ###")
-            print("artist_id:", artist_id)
-            print(e)
-
     def get_episode_info(self, episode_id_str):
         info = json.loads(
             self.authorized_get_request(
