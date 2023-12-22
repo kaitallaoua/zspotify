@@ -18,14 +18,39 @@ ZYSpotify is a Spotify downloader that enables users to find and download (a lot
 - [ ] Get all other switches working
 - [ ] Use logging libary instead of printing
 - [ ] Check for new artist songs/albums feature
-- [ ] Ensure docker support works
+- [x] Ensure docker support works
 - [ ] Conform project for strict type checking
 - [ ] Use code coverage/test suites
 
 
 ## Installation
-### Recommended: use virtual enviroments
-Clone the repo, pip install the requirements and follow the usage below
+
+### Docker
+
+
+```bash
+cd examples
+```
+
+Edit `docker-compose.yml` with your username and password.
+
+```bash
+sudo docker compose run --rm zyspotify -lsdall
+```
+
+***Note 🗒️***: Remove username and password after running for first time.
+
+Of course edit arguments as needed. To adjust music download dir, either
+- use `-md` and edit compose file volume mounts.
+- (prefered) edit `./Music:/root/Music` to `/your/dir:/root/Music` in `docker-compose.yml`
+
+
+
+### pip - to be fixed
+
+
+### Manual
+Clone the repo, use virtual enviroments, pip install the requirements and follow the usage below
 
 ## Usage
 
@@ -55,6 +80,7 @@ Pull requests are welcome. For major changes, please open an issue first
 to discuss what you would like to change.
 
 - [GitHub Issues](https://github.com/kaitallaoua/zyspotify/issues) of this repository.
+- [DockerHub](https://hub.docker.com/r/kaitallaoua/zyspotify) of this repository.
 - [Discussions](https://github.com/kaitallaoua/zyspotify/discussions) of this repository.
 
 ## Known oddities/issues
