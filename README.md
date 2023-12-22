@@ -1,5 +1,6 @@
 # ZYSpotify
 
+[![Docker CI](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml)
 [![GPLv3](https://img.shields.io/github/license/jsavargas/zspotify)](https://opensource.org/license/gpl-3-0)
 
 This is a moderately modifed fork of ZSpotify with the goal of more robust large downloads (sqlite db instead of json archive file), eventually with the purpose to be run periodically/as a service to fetch new songs and more. A fork was decided as many, many changes were desired to be implemented more quickly than PR's.
