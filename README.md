@@ -17,7 +17,7 @@ ZYSpotify is a Spotify downloader that enables users to find and download (a lot
 - [ ] Add spotify liked songs playlist importer for plex
 - [ ] Ensure pip install works
 - [ ] Get all other switches working
-- [ ] Use logging libary instead of printing
+- [x] Use logging libary instead of printing
 - [ ] Check for new artist songs/albums feature
 - [x] Ensure docker support works
 - [ ] Conform project for strict type checking

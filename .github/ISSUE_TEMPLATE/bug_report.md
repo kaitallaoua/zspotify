@@ -3,7 +3,7 @@ name: Bug report
 about: Create a report to help us improve
 title: ''
 labels: bug
-assignees: ''
+assignees: '@kaitallaoua'
 
 ---
 
@@ -11,6 +11,9 @@ assignees: ''
 Before posting your issue, please check the README.md for informations:
     https://github.com/kaitallaoua/zyspotify/blob/master/README.md
 -->
+**Please attach your log file**
+<!--If possible, please capture the problem with log level DEBUG as follows: `-lfl DEBUG`-->
+
 
 **Environment (please complete the following information):**
  - OS: <!-- e.g. Windows 11 / Ubuntu 22.04 / Docker -->
@@ -38,6 +41,7 @@ Place contents inside a code block,
 Stack trace contents here
 ```
 -->
+
 
 **Additional context**
 <!--
