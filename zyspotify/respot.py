@@ -174,7 +174,7 @@ class RespotRequest:
 
     def authorized_get_request(
         self, url: str, retry_count: int = 0, **kwargs
-    ) -> Optional[requests.Response]:
+    ) -> requests.Response:
         if retry_count > MAX_AUTH_GET_RETRIES:
             logger.critical(
                 f"Max authorized_get_request retries ({MAX_AUTH_GET_RETRIES}) reached."
@@ -197,14 +197,21 @@ class RespotRequest:
 
             response.raise_for_status()
 
+            if response.status_code == 204:
+                logger.error("authorized_get_request http 204 No Content")
+                retry()
+
             # if headers indicated response contained json, verify it decodes fine.
             if (
                 response.status_code != 204 and
                 response.headers["content-type"].strip().startswith("application/json")
             ):
-                # a tad wasteful to not return the valid result, but what the callee does with the response is not always json
-                response.json()
+                json_resp = response.json()
 
+                empty = not bool(json_resp)
+                if json_resp == None or empty:
+                    logger.error(f"authorized_get_request json response was empty")
+                    retry()
 
             # typical, errorless case
             return response
@@ -236,53 +243,45 @@ class RespotRequest:
 
     def get_track_info(self, track_id) -> dict:
         """Retrieves metadata for downloaded songs"""
-        try:
-            info = json.loads(
-                self.authorized_get_request(
-                    "https://api.spotify.com/v1/tracks?ids="
-                    + track_id
-                    + "&market=from_token"
-                ).text
-            )
+        info = self.authorized_get_request(
+                "https://api.spotify.com/v1/tracks?ids="
+                + track_id
+                + "&market=from_token"
+            ).json()
+        
 
-            # Sum the size of the images, compares and saves the index of the
-            # largest image size
-            sum_total = []
-            for sum_px in info["tracks"][0]["album"]["images"]:
-                sum_total.append(sum_px["height"] + sum_px["width"])
+        # Sum the size of the images, compares and saves the index of the
+        # largest image size
+        sum_total = []
+        for sum_px in info["tracks"][0]["album"]["images"]:
+            sum_total.append(sum_px["height"] + sum_px["width"])
 
-            img_index = sum_total.index(max(sum_total)) if sum_total else -1
+        img_index = sum_total.index(max(sum_total)) if sum_total else -1
 
-            artist_id = info["tracks"][0]["artists"][0]["id"]
+        artist_id = info["tracks"][0]["artists"][0]["id"]
 
-            artists = [data["name"] for data in info["tracks"][0]["artists"]]
+        artists = [data["name"] for data in info["tracks"][0]["artists"]]
 
-            # TODO: Implement genre checking
-            return {
-                "id": track_id,
-                "artist_id": artist_id,
-                "artist_name": RespotUtils.conv_artist_format(artists),
-                "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
-                "album_name": info["tracks"][0]["album"]["name"],
-                "audio_name": info["tracks"][0]["name"],
-                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
-                if img_index >= 0
-                else None,
-                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
-                    0
-                ],
-                "disc_number": info["tracks"][0]["disc_number"],
-                "audio_number": info["tracks"][0]["track_number"],
-                "scraped_song_id": info["tracks"][0]["id"],
-                "is_playable": info["tracks"][0]["is_playable"],
-                "release_date": info["tracks"][0]["album"]["release_date"],
-            }
-
-        except Exception as e:
-            logging.critical("###   get_track_info - FAILED TO QUERY METADATA   ###")
-            logging.critical("track_id:", track_id)
-            logging.critical(e, exc_info=True)
-            return None
+        # TODO: Implement genre checking
+        return {
+            "id": track_id,
+            "artist_id": artist_id,
+            "artist_name": RespotUtils.conv_artist_format(artists),
+            "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
+            "album_name": info["tracks"][0]["album"]["name"],
+            "audio_name": info["tracks"][0]["name"],
+            "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
+            if img_index >= 0
+            else None,
+            "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
+                0
+            ],
+            "disc_number": info["tracks"][0]["disc_number"],
+            "audio_number": info["tracks"][0]["track_number"],
+            "scraped_song_id": info["tracks"][0]["id"],
+            "is_playable": info["tracks"][0]["is_playable"],
+            "release_date": info["tracks"][0]["album"]["release_date"],
+        }
 
     def get_all_user_playlists(self):
         """Returns list of users playlists"""
@@ -698,53 +697,46 @@ class RespotTrackHandler:
         # TODO: ADD disc_number IF > 1
 
         try:
-            try:
-                _track_id = TrackId.from_base62(track_id)
-                stream = self.auth.session.content_feeder().load(
-                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                )
-            except ApiClient.StatusCodeException:
-                _track_id = EpisodeId.from_base62(track_id)
-                stream = self.auth.session.content_feeder().load(
-                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                )
+            _track_id = TrackId.from_base62(track_id)
+            stream = self.auth.session.content_feeder().load(
+                _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+            )
+        except ApiClient.StatusCodeException:
+            _track_id = EpisodeId.from_base62(track_id)
+            stream = self.auth.session.content_feeder().load(
+                _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+            )
 
-            total_size = stream.input_stream.size
-            downloaded = 0
-            fail_count = 0
-            audio_bytes = BytesIO()
-            progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
+        total_size = stream.input_stream.size
+        downloaded = 0
+        fail_count = 0
+        audio_bytes = BytesIO()
+        progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
 
-            while downloaded < total_size:
-                remaining = total_size - downloaded
-                read_size = min(self.CHUNK_SIZE, remaining)
-                data = stream.input_stream.stream().read(read_size)
+        while downloaded < total_size:
+            remaining = total_size - downloaded
+            read_size = min(self.CHUNK_SIZE, remaining)
+            data = stream.input_stream.stream().read(read_size)
 
-                if not data:
-                    fail_count += 1
-                    if fail_count > self.RETRY_DOWNLOAD:
-                        break
-                else:
-                    fail_count = 0  # reset fail_count on successful data read
+            if not data:
+                fail_count += 1
+                if fail_count > self.RETRY_DOWNLOAD:
+                    break
+            else:
+                fail_count = 0  # reset fail_count on successful data read
 
-                downloaded += len(data)
-                progress_bar.update(len(data))
-                audio_bytes.write(data)
+            downloaded += len(data)
+            progress_bar.update(len(data))
+            audio_bytes.write(data)
 
-            progress_bar.close()
+        progress_bar.close()
 
-            # Sleep to avoid ban
-            time.sleep(self.antiban_wait_time)
+        # Sleep to avoid ban
+        time.sleep(self.antiban_wait_time)
 
-            audio_bytes.seek(0)
+        audio_bytes.seek(0)
 
-            return audio_bytes
-
-        except Exception as e:
-            logging.critical("###   download_track - FAILED TO DOWNLOAD   ###")
-            logging.critical(e, exc_info=True)
-            logging.critical(track_id, filename)
-            return None
+        return audio_bytes
 
     def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path) -> None:
         """Converts raw audio (ogg vorbis) to user specified format"""
