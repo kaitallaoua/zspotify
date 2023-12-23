@@ -91,7 +91,7 @@ class ZYSpotify:
         """
         )
         print(FormatUtils.RESET)
-        print(f"version: {__version__}")
+        logger.info(f"version: {__version__}")
 
     def split_input(self, selection):
         """Splits the input into a list"""
@@ -129,7 +129,7 @@ class ZYSpotify:
                 username = _USERNAME
                 password = _PASSWORD
             else:
-                print("Login to Spotify")
+                logging.info("Login to Spotify")
                 username = input("Username: ")
                 password = getpass("Password: ")
             if self.respot.is_authenticated(username, password):
@@ -189,11 +189,11 @@ class ZYSpotify:
                 track = self.respot.request.get_track_info(track_id)
 
             if track is None:
-                print(f"Skipping {track_id} - Could not get track info")
+                logging.error(f"Skipping {track_id} - Could not get track info")
                 return True
 
             if not track["is_playable"]:
-                print(f"Skipping {track['audio_name']} - Not Available")
+                logging.error(f"Skipping {track['audio_name']} - Not Available")
                 return True
 
             audio_name = track.get("audio_name")
@@ -223,7 +223,7 @@ class ZYSpotify:
                     db_manager.set_song_downloaded(
                         track_id, Path(song_path), should_commit=True
                     )
-                    print(f"Skipping {filename + ext} - Already downloaded")
+                    logging.warning(f"Skipping {filename + ext} - Already downloaded")
                     return True
 
             output_path = self.respot.download(
@@ -233,7 +233,7 @@ class ZYSpotify:
             if output_path == "":
                 return
 
-            print(f"Setting audiotags {filename}")
+            logging.info(f"Setting audiotags {filename}")
             self.tagger.set_audio_tags(
                 output_path,
                 artists=artist_name,
@@ -250,48 +250,48 @@ class ZYSpotify:
             db_manager.set_song_downloaded(
                 track_id, Path(output_path), should_commit=True
             )
-            print(f"Finished downloading {filename}")
+            logging.info(f"Finished downloading {filename}")
 
         else:
-            print(f"Skipping song {track_id}, already downloaded")
+            logging.warning(f"Skipping song {track_id}, already downloaded")
 
     def download_playlist(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
         if not playlist:
-            print("Playlist not found")
+            logging.error("Playlist not found")
             return False
         songs = self.respot.request.get_playlist_songs(playlist_id)
         if not songs:
-            print("Playlist is empty")
+            logging.error("Playlist is empty")
             return False
         playlist_name = playlist["name"]
         if playlist_name == "":
             playlist_name = playlist_id
-        print(f"Downloading {playlist_name} playlist")
+        logging.info(f"Downloading {playlist_name} playlist")
         basepath = self.music_dir / FormatUtils.sanitize_data(playlist_name)
         for song in songs:
             self.download_track(song["id"], basepath, "playlist")
-        print(f"Finished downloading {playlist['name']} playlist")
+        logging.info(f"Finished downloading {playlist['name']} playlist")
 
     def download_all_user_playlists(self):
         playlists = self.respot.request.get_all_user_playlists()
         if not playlists:
-            print("No playlists found")
+            logging.error("No playlists found")
             return False
         for playlist in playlists["playlists"]:
             self.download_playlist(playlist["id"])
             self.antiban_wait(self.antiban_album_time)
-        print("Finished downloading all user playlists")
+        logging.info("Finished downloading all user playlists")
 
     def download_select_user_playlists(self):
         playlists = self.respot.request.get_all_user_playlists()
         if not playlists:
-            print("No playlists found")
+            logging.error("No playlists found")
             return False
         for i, playlist in enumerate(playlists["playlists"]):
-            print(f"    {i + 1}. {playlist['name']}")
+            logging.info(f"    {i + 1}. {playlist['name']}")
 
-        print(
+        logging.info(
             """
         > SELECT A PLAYLIST BY ID.
         > SELECT A RANGE BY ADDING A DASH BETWEEN BOTH ID's.
@@ -321,12 +321,12 @@ class ZYSpotify:
             else:
                 playlist_ids.append(playlists["playlists"][track_id - 1]["id"])
         if invalid_ids:
-            print(f"{invalid_ids} do not exist, downloading the rest")
+            logging.warning(f"{invalid_ids} do not exist, downloading the rest")
 
         for playlist in playlist_ids:
             self.download_playlist(playlist)
             self.antiban_wait(self.antiban_album_time)
-        print("Finished downloading selected playlists")
+        logging.info("Finished downloading selected playlists")
 
     def download_album(
         self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
@@ -334,13 +334,13 @@ class ZYSpotify:
         if not db_manager.have_album_already_downloaded(album_id):
             album = self.respot.request.get_album_info(album_id)
             if not album:
-                print("Album not found")
+                logging.error("Album not found")
                 return False
 
             songs = self.respot.request.get_album_songs(album_id, artist_id)
 
             if not songs:
-                print("Album is empty")
+                logging.error("Album is empty")
                 return False
             disc_number_flag = False
             for song in songs:
@@ -353,7 +353,7 @@ class ZYSpotify:
                 f"{album['release_date']} - {album['name']}"
             )
 
-            print(f"Downloading {artists} - {album_name} album")
+            logging.info(f"Downloading {artists} - {album_name} album")
 
             # Concat download path
             basepath = self.music_dir / artists / album_name
@@ -373,9 +373,9 @@ class ZYSpotify:
                 self.download_track(song["id"], newBasePath, "album")
 
             db_manager.set_album_fully_downloaded(album_id, should_commit=True)
-            print(f"Finished downloading {album['artists']} - {album['name']} album")
+            logging.info(f"Finished downloading {album['artists']} - {album['name']} album")
         else:
-            print(f"Skipping album {album_id}, already fully downloaded")
+            logging.warning(f"Skipping album {album_id}, already fully downloaded")
             return False
         return True
 
@@ -383,7 +383,7 @@ class ZYSpotify:
         if not db_manager.have_artist_already_downloaded(artist_id):
             albums_ids = self.respot.request.get_artist_albums(artist_id)
             if not albums_ids:
-                print(f"Artist {artist_id} has no albums")
+                logging.error(f"Artist {artist_id} has no albums")
                 return False
             for album_id in albums_ids:
                 # only preform antiban wait if we actually downloaded something
@@ -391,14 +391,14 @@ class ZYSpotify:
                     self.antiban_wait(self.antiban_album_time)
 
             db_manager.set_artist_fully_downloaded(artist_id, should_commit=True)
-            print(f"Finished downloading {artist_id} artist")
+            logging.info(f"Finished downloading {artist_id} artist")
         else:
-            print(f"Skipping artist {artist_id}, already fully downloaded")
+            logging.warning(f"Skipping artist {artist_id}, already fully downloaded")
         return True
 
     def download_all_songs_from_all_liked_artists(self):
         artist_ids = self.respot.request.get_all_liked_artists()
-        print(f"Downloading [{len(artist_ids)}] artists")
+        logging.info(f"Downloading [{len(artist_ids)}] artists")
 
         for artist_id in artist_ids:
             self.download_artist(artist_id)
@@ -406,13 +406,13 @@ class ZYSpotify:
     def download_liked_songs(self):
         songs = self.respot.request.get_liked_tracks()
         if not songs:
-            print("No liked songs found")
+            logging.error("No liked songs found")
             return False
-        print("Downloading liked songs")
+        logging.info("Downloading liked songs")
         basepath = self.music_dir / "Liked Songs"
         for song in songs:
             self.download_track(song["id"], basepath, "liked_songs")
-        print("Finished downloading liked songs")
+        logging.info("Finished downloading liked songs")
         return True
 
     def download_by_url(self, url):
@@ -430,22 +430,22 @@ class ZYSpotify:
         elif parsed_url["show"]:
             ret = self.download_all_show_episodes(parsed_url["show"])
         else:
-            print("Invalid URL")
+            logging.error("Invalid URL")
             return False
         return ret
 
     def download_all_show_episodes(self, show_id):
         show = self.respot.request.get_show_info(show_id)
         if not show:
-            print("Show not found")
+            logging.error("Show not found")
             return False
         episodes = self.respot.request.get_show_episodes(show_id)
         if not episodes:
-            print("Show has no episodes")
+            logging.error("Show has no episodes")
             return False
         for episode in episodes:
             self.download_track(episode["id"], "show")
-        print(f"Finished downloading {show['name']} show")
+        logging.info(f"Finished downloading {show['name']} show")
         return True
 
     def search(self, query):
@@ -456,40 +456,40 @@ class ZYSpotify:
         # TODO: Add search by artist, album, playlist, etc.
         results = self.respot.request.search(query, self.search_limit)
         if not results:
-            print("No results found")
+            logging.warning("No results found")
             return False
-        print("Search results:")
-        print(f"{FormatUtils.GREEN}TRACKS{FormatUtils.RESET}")
+        logging.info("Search results:")
+        logging.info(f"{FormatUtils.GREEN}TRACKS{FormatUtils.RESET}")
         full_results = []
         i = 1
         for result in results["tracks"]:
-            print(f"{i}. {result['artists']} - {result['name']}")
+            logging.info(f"{i}. {result['artists']} - {result['name']}")
             result["type"] = "track"
             full_results.append(result)
             i += 1
-        print(f"\n{FormatUtils.GREEN}ALBUMS{FormatUtils.RESET}")
+        logging.info(f"\n{FormatUtils.GREEN}ALBUMS{FormatUtils.RESET}")
         for result in results["albums"]:
-            print(f"{i}. {result['artists']} - {result['name']}")
+            logging.info(f"{i}. {result['artists']} - {result['name']}")
             result["type"] = "album"
             full_results.append(result)
             i += 1
-        print(f"\n{FormatUtils.GREEN}PLAYLISTS{FormatUtils.RESET}")
+        logging.info(f"\n{FormatUtils.GREEN}PLAYLISTS{FormatUtils.RESET}")
         for result in results["playlists"]:
-            print(f"{i}. {result['name']}")
+            logging.info(f"{i}. {result['name']}")
             result["type"] = "playlist"
             full_results.append(result)
             i += 1
-        print(f"\n{FormatUtils.GREEN}ARTISTS{FormatUtils.RESET}")
+        logging.info(f"\n{FormatUtils.GREEN}ARTISTS{FormatUtils.RESET}")
         for result in results["artists"]:
-            print(f"{i}. {result['name']}")
+            logging.info(f"{i}. {result['name']}")
             result["type"] = "artist"
             full_results.append(result)
             i += 1
-        print("")
-        print("Enter the number of the item you want to download")
-        print(f"allowed delimiters: {self.SEPARATORS}")
-        print("Enter 'all' to download all items")
-        print("Enter 'exit' to exit")
+        logging.info("")
+        logging.info("Enter the number of the item you want to download")
+        logging.info(f"allowed delimiters: {self.SEPARATORS}")
+        logging.info("Enter 'all' to download all items")
+        logging.info("Enter 'exit' to exit")
         selection = input(">>>")
         while selection == "":
             selection = input(">>>")
@@ -508,7 +508,7 @@ class ZYSpotify:
             return True
         for item in self.split_input(selection):
             if int(item) >= len(full_results) + 1:
-                print("Invalid selection")
+                logging.error("Invalid selection")
                 return False
             result = full_results[int(item) - 1]
             if result["type"] == "track":
@@ -524,14 +524,14 @@ class ZYSpotify:
     def start(self):
         """Main client loop"""
         if self.args.version:
-            print(f"ZYSpotify {__version__}")
+            logging.info(f"ZYSpotify {__version__}")
             return
 
         logger.debug(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
 
         self.splash()
         while not self.login():
-            print("Invalid credentials")
+            logging.error("Invalid credentials")
 
         if self.args.all_playlists:
             raise NotImplementedError()
@@ -571,7 +571,7 @@ class ZYSpotify:
                     self.download_by_url(track)
                 else:
                     self.download_track(track)
-            print("All Done")
+            logging.info("All Done")
         elif self.args.episode:
             raise NotImplementedError()
             for episode in self.split_input(self.args.episode):
@@ -604,12 +604,12 @@ class ZYSpotify:
             while True:
                 self.args.search = input("Search: ")
                 while self.args.search == "":
-                    print("Please try again or press CTRL-C to terminate.")
+                    logging.info("Please try again or press CTRL-C to terminate.")
                     self.args.search = input("Search: ")
                 if self.args.search:
                     self.search(self.args.search)
                 else:
-                    print("Invalid input")
+                    logging.info("Invalid input")
 
 
 def main():
@@ -619,7 +619,7 @@ def main():
     try:
         zys.start()
     except KeyboardInterrupt:
-        print("Interrupted by user")
+        logging.error("Interrupted by user")
         db_manager.commit()
         db_manager.close_all()
         sys.exit(0)
