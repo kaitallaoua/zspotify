@@ -223,7 +223,7 @@ class ZYSpotify:
                     db_manager.set_song_downloaded(
                         track_id, Path(song_path), should_commit=True
                     )
-                    logger.warning(f"Skipping {filename + ext} - Already downloaded")
+                    logger.info(f"Skipping {filename + ext} - Already downloaded")
                     return True
 
             output_path = self.respot.download(
@@ -253,7 +253,7 @@ class ZYSpotify:
             logger.info(f"Finished downloading {filename}")
 
         else:
-            logger.warning(f"Skipping song {track_id}, already downloaded")
+            logger.info(f"Skipping song {track_id}, already downloaded")
 
     def download_playlist(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
@@ -375,7 +375,7 @@ class ZYSpotify:
             db_manager.set_album_fully_downloaded(album_id, should_commit=True)
             logger.info(f"Finished downloading {album['artists']} - {album['name']} album")
         else:
-            logger.warning(f"Skipping album {album_id}, already fully downloaded")
+            logger.info(f"Skipping album {album_id}, already fully downloaded")
             return False
         return True
 
@@ -393,7 +393,7 @@ class ZYSpotify:
             db_manager.set_artist_fully_downloaded(artist_id, should_commit=True)
             logger.info(f"Finished downloading {artist_id} artist")
         else:
-            logger.warning(f"Skipping artist {artist_id}, already fully downloaded")
+            logger.info(f"Skipping artist {artist_id}, already fully downloaded")
         return True
 
     def download_all_songs_from_all_liked_artists(self):
