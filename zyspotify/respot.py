@@ -4,7 +4,7 @@ import json
 import re
 import requests
 import time
-from typing import List
+from typing import List, Optional
 from .db import db_manager
 from .utils import FormatUtils
 from .custom_types import *
@@ -22,6 +22,10 @@ logger = logging.getLogger()
 def removeDuplicates(lst):
     return [t for t in (set(tuple(i) for i in lst))]
 
+
+MAX_AUTH_GET_RETRIES = 10
+AUTH_GET_TIMEOUT = 10
+AUTH_GET_RETRY_MULTIPLE_SEC = 10
 
 API_ME = "https://api.spotify.com/v1/me/"
 
@@ -168,9 +172,18 @@ class RespotRequest:
         self.token = auth.token
         self.token_your_library = auth.token_your_library
 
-    def authorized_get_request(self, url: str, retry_count: int = 0, **kwargs):
-        if retry_count > 3:
+    def authorized_get_request(
+        self, url: str, retry_count: int = 0, **kwargs
+    ) -> Optional[requests.Response]:
+        if retry_count > MAX_AUTH_GET_RETRIES:
+            logger.critical(
+                f"Max authorized_get_request retries ({MAX_AUTH_GET_RETRIES}) reached."
+            )
             raise RuntimeError("Connection Error: Too many retries")
+
+        def retry():
+            time.sleep(retry_count * AUTH_GET_RETRY_MULTIPLE_SEC)
+            return self.authorized_get_request(url, retry_count + 1, **kwargs)
 
         try:
             response = requests.get(
@@ -179,14 +192,47 @@ class RespotRequest:
                     "Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"
                 },
                 **kwargs,
+                timeout=AUTH_GET_TIMEOUT,
             )
-            if response.status_code == 401:
-                logging.warning("Token expired, refreshing...")
-                self.token, self.token_your_library = self.auth.refresh_token()
-                return self.authorized_get_request(url, retry_count + 1, **kwargs)
+
+            response.raise_for_status()
+
+            # if headers indicated response contained json, verify it decodes fine.
+            if (
+                response.status_code != 204 and
+                response.headers["content-type"].strip().startswith("application/json")
+            ):
+                # a tad wasteful to not return the valid result, but what the callee does with the response is not always json
+                response.json()
+
+
+            # typical, errorless case
             return response
-        except requests.exceptions.ConnectionError:
-            return self.authorized_get_request(url, retry_count + 1, **kwargs)
+
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 401:
+                logger.warning("Token expired, refreshing...")
+                self.token, self.token_your_library = self.auth.refresh_token()
+            else:
+                logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}")
+
+            retry()
+
+        except requests.exceptions.Timeout as e:
+            logger.error(f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.JSONDecodeError as e:
+            logger.error(f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}")
+            retry()
 
     def get_track_info(self, track_id) -> dict:
         """Retrieves metadata for downloaded songs"""
@@ -614,7 +660,9 @@ class RespotRequest:
                     name = str(song["track"]["artists"][0]["name"])
                     packed_artists.append((id, name))
             except KeyError:
-                logging.error(f"Failed to get liked artists for offset: {offset}, continuing")
+                logging.error(
+                    f"Failed to get liked artists for offset: {offset}, continuing"
+                )
                 continue
             if len(resp["items"]) < limit:
                 break

@@ -86,7 +86,7 @@ class AudioTagger:
                 tags[tag] = id3.Frames[tag](encoding=3, text=value)
 
         if image_url:
-            albumart = requests.get(image_url).content
+            albumart = requests.get(image_url, timeout=5).content
             if albumart:
                 tags["APIC"] = id3.APIC(
                     encoding=3, mime="image/jpeg", type=3, desc="0", data=albumart
@@ -125,7 +125,7 @@ class AudioTagger:
                 tags[tag] = value
 
         if image_url:
-            albumart = requests.get(image_url).content
+            albumart = requests.get(image_url, timeout=5).content
             if albumart:
                 tags["artwork"] = albumart
 
