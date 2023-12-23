@@ -75,7 +75,8 @@ class ZYSpotify:
         stdout_handler.setLevel(self.args.stdout_log_level)
         logger.addHandler(stdout_handler)
 
-        logger.setLevel(logging.INFO) # INFO or higher gets sent to stdout
+        logger.setLevel(logging.DEBUG) # NEEDS TO BE SET TO MINIMUM LOG LEVEL EXPECTED FOR ANY HANDLER
+        logging.debug("Logging Initalized")
 
     def splash(self):
         """Displays splash screen"""
