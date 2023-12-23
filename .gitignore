@@ -174,3 +174,4 @@ music
 config
 Music
 /docker-compose.yml
+dev*
