@@ -14,10 +14,9 @@ from librespot.core import ApiClient, Session
 from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
+import logging
 
-SpotifyArtistId = str
-ArtistName = str
-PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
+logger = logging.getLogger()
 
 
 def removeDuplicates(lst):
@@ -63,17 +62,17 @@ class Respot:
         output_path = temp_path
 
         if extension == audio_bytes_format:
-            print(f"Saving {output_path.stem} directly")
+            logging.info(f"Saving {output_path.stem} directly")
             handler.bytes_to_file(audio_bytes, output_path)
         elif extension == "source":
             output_str = filename + "." + audio_bytes_format
             output_path = temp_path.parent / output_str
-            print(f"Saving {filename} as {extension}")
+            logging.info(f"Saving {filename} as {extension}")
             handler.bytes_to_file(audio_bytes, output_path)
         else:
             output_str = filename + "." + extension
             output_path = temp_path.parent / output_str
-            print(f"Converting {filename} to {extension}")
+            logging.info(f"Converting {filename} to {extension}")
             handler.convert_audio_format(audio_bytes, output_path)
 
         return output_path
@@ -153,10 +152,10 @@ class RespotAuth:
         account_type = self.session.get_user_attribute("type")
         if account_type == "premium" or self.force_premium:
             self.quality = AudioQuality.VERY_HIGH
-            print("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
+            logging.info("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
         else:
             self.quality = AudioQuality.HIGH
-            print("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
+            logging.info("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
 
     def get_quality(self) -> AudioQuality:
         assert self.quality is not None
@@ -182,7 +181,7 @@ class RespotRequest:
                 **kwargs,
             )
             if response.status_code == 401:
-                print("Token expired, refreshing...")
+                logging.warning("Token expired, refreshing...")
                 self.token, self.token_your_library = self.auth.refresh_token()
                 return self.authorized_get_request(url, retry_count + 1, **kwargs)
             return response
@@ -234,9 +233,9 @@ class RespotRequest:
             }
 
         except Exception as e:
-            print("###   get_track_info - FAILED TO QUERY METADATA   ###")
-            print("track_id:", track_id)
-            print(e)
+            logging.critical("###   get_track_info - FAILED TO QUERY METADATA   ###")
+            logging.critical("track_id:", track_id)
+            logging.critical(e, exc_info=True)
             return None
 
     def get_all_user_playlists(self):
@@ -299,7 +298,7 @@ class RespotRequest:
         self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
     ) -> list[PackedSongs]:
         if not db_manager.have_all_album_songs(album_id):
-            print(f"need to request album {album_id}'s songs from spotify")
+            logging.info(f"need to request album {album_id}'s songs from spotify")
             songs = self.request_all_album_songs(album_id, artist_id)
 
             db_manager.store_album_songs(songs)
@@ -382,7 +381,7 @@ class RespotRequest:
 
     def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
         if not db_manager.have_all_artist_albums(artist_id):
-            print(f"need to request artist {artist_id}'s albums from spotify")
+            logging.info(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
 
             db_manager.store_all_artist_albums(artist_id, all_artist_albums)
@@ -430,25 +429,6 @@ class RespotRequest:
                 break
 
         return songs
-
-    def get_artist_info(self, artist_id):
-        """Retrieves metadata for downloaded songs"""
-
-        try:
-            info = json.loads(
-                self.authorized_get_request(
-                    "https://api.spotify.com/v1/artists/" + artist_id
-                ).text
-            )
-
-            return {
-                "name": FormatUtils.sanitize_data(info["name"]),
-                "genres": RespotUtils.conv_artist_format(info["genres"]),
-            }
-        except Exception as e:
-            print("###   get_artist_info - FAILED TO QUERY METADATA   ###")
-            print("artist_id:", artist_id)
-            print(e)
 
     def get_episode_info(self, episode_id_str):
         info = json.loads(
@@ -605,7 +585,7 @@ class RespotRequest:
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
         if not db_manager.have_all_liked_artists():
-            print("need to request liked artists from spotify")
+            logging.info("need to request liked artists from spotify")
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
@@ -634,7 +614,7 @@ class RespotRequest:
                     name = str(song["track"]["artists"][0]["name"])
                     packed_artists.append((id, name))
             except KeyError:
-                print(f"Failed to get liked artists for offset: {offset}, continuing")
+                logging.error(f"Failed to get liked artists for offset: {offset}, continuing")
                 continue
             if len(resp["items"]) < limit:
                 break
@@ -713,9 +693,9 @@ class RespotTrackHandler:
             return audio_bytes
 
         except Exception as e:
-            print("###   download_track - FAILED TO DOWNLOAD   ###")
-            print(e)
-            print(track_id, filename)
+            logging.critical("###   download_track - FAILED TO DOWNLOAD   ###")
+            logging.critical(e, exc_info=True)
+            logging.critical(track_id, filename)
             return None
 
     def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path) -> None:

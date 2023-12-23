@@ -1,4 +1,7 @@
 # Changelog
+**v3.0.1 (22 Dec 2023)**
+- added logging support, replaced relevant prints with logger
+
 **v3.0.0 (22 Dec 2023)**
 
 Overdue for a new version!

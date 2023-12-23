@@ -7,6 +7,7 @@ services:
     # such as https://github.com/wfg/docker-openvpn-client
     # network_mode: container:openvpn-client
     volumes:
+      - ./log:/root/zyspotify_log
       - ./config:/root/config
       - ./Music:/root/Music
     environment:
