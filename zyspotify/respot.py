@@ -66,17 +66,17 @@ class Respot:
         output_path = temp_path
 
         if extension == audio_bytes_format:
-            logging.info(f"Saving {output_path.stem} directly")
+            logger.info(f"Saving {output_path.stem} directly")
             handler.bytes_to_file(audio_bytes, output_path)
         elif extension == "source":
             output_str = filename + "." + audio_bytes_format
             output_path = temp_path.parent / output_str
-            logging.info(f"Saving {filename} as {extension}")
+            logger.info(f"Saving {filename} as {extension}")
             handler.bytes_to_file(audio_bytes, output_path)
         else:
             output_str = filename + "." + extension
             output_path = temp_path.parent / output_str
-            logging.info(f"Converting {filename} to {extension}")
+            logger.info(f"Converting {filename} to {extension}")
             handler.convert_audio_format(audio_bytes, output_path)
 
         return output_path
@@ -156,10 +156,10 @@ class RespotAuth:
         account_type = self.session.get_user_attribute("type")
         if account_type == "premium" or self.force_premium:
             self.quality = AudioQuality.VERY_HIGH
-            logging.info("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
+            logger.info("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
         else:
             self.quality = AudioQuality.HIGH
-            logging.info("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
+            logger.info("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
 
     def get_quality(self) -> AudioQuality:
         assert self.quality is not None
@@ -343,7 +343,7 @@ class RespotRequest:
         self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
     ) -> list[PackedSongs]:
         if not db_manager.have_all_album_songs(album_id):
-            logging.info(f"need to request album {album_id}'s songs from spotify")
+            logger.info(f"need to request album {album_id}'s songs from spotify")
             songs = self.request_all_album_songs(album_id, artist_id)
 
             db_manager.store_album_songs(songs)
@@ -426,7 +426,7 @@ class RespotRequest:
 
     def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
         if not db_manager.have_all_artist_albums(artist_id):
-            logging.info(f"need to request artist {artist_id}'s albums from spotify")
+            logger.info(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
 
             db_manager.store_all_artist_albums(artist_id, all_artist_albums)
@@ -630,7 +630,7 @@ class RespotRequest:
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
         if not db_manager.have_all_liked_artists():
-            logging.info("need to request liked artists from spotify")
+            logger.info("need to request liked artists from spotify")
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
@@ -659,7 +659,7 @@ class RespotRequest:
                     name = str(song["track"]["artists"][0]["name"])
                     packed_artists.append((id, name))
             except KeyError:
-                logging.error(
+                logger.error(
                     f"Failed to get liked artists for offset: {offset}, continuing"
                 )
                 continue
