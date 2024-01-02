@@ -42,6 +42,7 @@ class ZYSpotify:
             force_premium=self.args.force_premium,
             audio_format=self.args.audio_format,
             antiban_wait_time=self.args.antiban_time,
+            force_liked_artist_query=self.args.force_liked_artist_query
         )
         self.search_limit = self.args.limit
 

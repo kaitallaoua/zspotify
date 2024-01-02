@@ -31,12 +31,12 @@ API_ME = "https://api.spotify.com/v1/me/"
 
 
 class Respot:
-    def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
+    def __init__(self, config_dir, force_premium, force_liked_artist_query, audio_format, antiban_wait_time):
         self.config_dir: Path = config_dir
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
-        self.auth: RespotAuth = RespotAuth(self.force_premium)
+        self.auth: RespotAuth = RespotAuth(self.force_premium, force_liked_artist_query)
         self.request: RespotRequest = None
 
     def is_authenticated(self, username=None, password=None) -> bool:
@@ -83,8 +83,9 @@ class Respot:
 
 
 class RespotAuth:
-    def __init__(self, force_premium):
+    def __init__(self, force_premium, force_liked_artist_query):
         self.force_premium = force_premium
+        self.force_liked_artist_query = force_liked_artist_query
         self.session = None
         self.token = None
         self.token_your_library = None
@@ -637,8 +638,8 @@ class RespotRequest:
             }
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
-        if not db_manager.have_all_liked_artists():
-            logger.info("need to request liked artists from spotify")
+        if not db_manager.have_all_liked_artists() or self.auth.force_liked_artist_query:
+            logger.info(f"{'[Forced] ' if self.auth.force_liked_artist_query else ''}need to request liked artists from spotify")
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db

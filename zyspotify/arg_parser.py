@@ -140,6 +140,13 @@ def parse_args():
         default=True,
     )
     parser.add_argument(
+        "-flaq",
+        "--force-liked-artist-query",
+        help="Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
     )
     parser.add_argument(

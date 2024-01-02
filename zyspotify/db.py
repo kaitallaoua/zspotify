@@ -197,8 +197,10 @@ class SQLiteDBManager:
     def store_all_liked_artists(
         self, packed_artists: list[PackedArtists], should_commit: bool = False
     ) -> None:
+        
+        # already inserted artists just ignore them
         self.cursor.executemany(
-            "INSERT INTO artists (artist_id, name) VALUES (?, ?)", packed_artists
+            "INSERT OR IGNORE INTO artists (artist_id, name) VALUES (?, ?)", packed_artists
         )
 
         if should_commit:
