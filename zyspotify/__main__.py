@@ -1,6 +1,6 @@
 import sys
 import time
-from requests import get
+import requests
 from getpass import getpass
 from pathlib import Path
 import importlib.metadata as metadata
@@ -15,6 +15,8 @@ import logging
 from logging.handlers import RotatingFileHandler
 from logging.config import dictConfig
 
+import errno
+
 try:
     __version__ = metadata.version("zyspotify")
 except metadata.PackageNotFoundError:
@@ -23,10 +25,13 @@ except metadata.PackageNotFoundError:
 _USERNAME = os.environ.get("USERNAME", None)
 _PASSWORD = os.environ.get("PASSWORD", None)
 
+GENERIC_MAX_STR_LEN = 50
+
 # using __name__ instead of the root logger seems to be the "proper" way, but:
 # librespot logs crap to INFO that we don't care about
 # same logger config's would need to be done in each module, which is nasty
 logger = logging.getLogger()
+
 
 class ZYSpotify:
     def __init__(self):
@@ -54,7 +59,6 @@ class ZYSpotify:
         self.log_dir_path = Path(self.args.log_dir)
         self.log_dir_path.mkdir(exist_ok=True)
 
-
         """
         TLDR: log level WARNING and up to a file by default, and to stdout level INFO and up by default
         """
@@ -63,10 +67,18 @@ class ZYSpotify:
         logger = logging.getLogger("root")
 
         # remove librespot info logging junk
-        dictConfig({"version": 1, "disable_existing_loggers":True})
+        dictConfig({"version": 1, "disable_existing_loggers": True})
 
-        log_file_handler = RotatingFileHandler((self.log_dir_path / "zyspotify.log"), maxBytes=int(self.args.max_log_size_bytes))
-        log_file_handler.setFormatter(logging.Formatter("%(levelname)s - [%(asctime)s] - {%(filename)s:%(funcName)s:%(lineno)d}: %(message)s", "%Y-%m-%dT%H:%M:%S%z"))
+        log_file_handler = RotatingFileHandler(
+            (self.log_dir_path / "zyspotify.log"),
+            maxBytes=int(self.args.max_log_size_bytes),
+        )
+        log_file_handler.setFormatter(
+            logging.Formatter(
+                "%(levelname)s - [%(asctime)s] - {%(filename)s:%(funcName)s:%(lineno)d}: %(message)s",
+                "%Y-%m-%dT%H:%M:%S%z",
+            )
+        )
         log_file_handler.setLevel(self.args.log_file_level)
         logger.addHandler(log_file_handler)
 
@@ -75,7 +87,9 @@ class ZYSpotify:
         stdout_handler.setLevel(self.args.stdout_log_level)
         logger.addHandler(stdout_handler)
 
-        logger.setLevel(logging.DEBUG) # NEEDS TO BE SET TO MINIMUM LOG LEVEL EXPECTED FOR ANY HANDLER
+        logger.setLevel(
+            logging.DEBUG
+        )  # NEEDS TO BE SET TO MINIMUM LOG LEVEL EXPECTED FOR ANY HANDLER
         logger.debug("Logging Initalized")
 
     def splash(self):
@@ -143,6 +157,18 @@ class ZYSpotify:
         else:
             truncated_audio_name = audio_name[:max_length]
             filename = filename.replace(audio_name, truncated_audio_name)
+
+        # finally verify the length is not too long
+        try:
+            Path(filename).exists()
+        except OSError as oserr:
+            if oserr.errno == errno.ENAMETOOLONG:
+                filename = filename[:GENERIC_MAX_STR_LEN]
+
+            else: # something unexpected
+                raise
+
+        # TODO: there is more to flesh out here, filename still could be too long
 
         return filename
 
@@ -333,8 +359,8 @@ class ZYSpotify:
     ) -> bool:
         if not db_manager.have_album_already_downloaded(album_id):
             album = self.respot.request.get_album_info(album_id)
-            if not album:
-                logger.error("Album not found")
+            if album is None:
+                logger.error(f"Album not found: {album_id}")
                 return False
 
             songs = self.respot.request.get_album_songs(album_id, artist_id)
@@ -349,9 +375,14 @@ class ZYSpotify:
 
             # Sanitize beforehand
             artists = FormatUtils.sanitize_data(album["artists"])
+
+            artists = artists[:GENERIC_MAX_STR_LEN]
+
             album_name = FormatUtils.sanitize_data(
                 f"{album['release_date']} - {album['name']}"
             )
+
+            album_name = album_name[:GENERIC_MAX_STR_LEN]
 
             logger.info(f"Downloading {artists} - {album_name} album")
 
@@ -373,7 +404,9 @@ class ZYSpotify:
                 self.download_track(song["id"], newBasePath, "album")
 
             db_manager.set_album_fully_downloaded(album_id, should_commit=True)
-            logger.info(f"Finished downloading {album['artists']} - {album['name']} album")
+            logger.info(
+                f"Finished downloading {album['artists']} - {album['name']} album"
+            )
         else:
             logger.info(f"Skipping album {album_id}, already fully downloaded")
             return False
@@ -527,8 +560,12 @@ class ZYSpotify:
             logger.info(f"ZYSpotify {__version__}")
             return
 
-        logger.debug(f"Public IP: {get('https://api.ipify.org').content.decode('utf8')}")
-
+        try:
+            logger.debug(
+                f"Public IP: {requests.get('https://api.ipify.org').content.decode('utf8')}"
+            )
+        except requests.exceptions.RequestException:
+            logger.error("IP check failed")
         self.splash()
         while not self.login():
             logger.error("Invalid credentials")
@@ -626,4 +663,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.exception("ZYSpotify Fatal Error ", exc_info=e)

@@ -174,7 +174,7 @@ class RespotRequest:
 
     def authorized_get_request(
         self, url: str, retry_count: int = 0, **kwargs
-    ) -> requests.Response:
+    ) -> Optional[requests.Response]:
         if retry_count > MAX_AUTH_GET_RETRIES:
             logger.critical(
                 f"Max authorized_get_request retries ({MAX_AUTH_GET_RETRIES}) reached."
@@ -241,17 +241,20 @@ class RespotRequest:
             logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}")
             retry()
 
-    def get_track_info(self, track_id) -> dict:
+    def get_track_info(self, track_id) -> Optional[dict]:
         """Retrieves metadata for downloaded songs"""
-        info = self.authorized_get_request(
+        info_request = self.authorized_get_request(
                 "https://api.spotify.com/v1/tracks?ids="
                 + track_id
                 + "&market=from_token"
-            ).json()
-        
+            )
+        if info_request is None:
+            return None
 
         # Sum the size of the images, compares and saves the index of the
         # largest image size
+        info = info_request.json()
+
         sum_total = []
         for sum_px in info["tracks"][0]["album"]["images"]:
             sum_total.append(sum_px["height"] + sum_px["width"])
@@ -401,9 +404,14 @@ class RespotRequest:
 
     def get_album_info(self, album_id):
         """Returns album name"""
-        resp = self.authorized_get_request(
+        album_resp = self.authorized_get_request(
             f"https://api.spotify.com/v1/albums/{album_id}"
-        ).json()
+        )
+
+        if album_resp is None:
+            return None
+
+        resp = album_resp.json()
 
         artists = []
         for artist in resp["artists"]:
@@ -692,7 +700,7 @@ class RespotTrackHandler:
     def create_out_dirs(self, parent_path) -> None:
         parent_path.mkdir(parents=True, exist_ok=True)
 
-    def download_audio(self, track_id, filename) -> BytesIO:
+    def download_audio(self, track_id, filename) -> Optional[BytesIO]:
         """Downloads raw song audio from Spotify"""
         # TODO: ADD disc_number IF > 1
 
@@ -716,7 +724,13 @@ class RespotTrackHandler:
         while downloaded < total_size:
             remaining = total_size - downloaded
             read_size = min(self.CHUNK_SIZE, remaining)
-            data = stream.input_stream.stream().read(read_size)
+
+            # librespot audio read can raise IndexError
+            try:
+                data = stream.input_stream.stream().read(read_size)
+            except IndexError as e:
+                logger.error(f"stream download failed with id: {track_id}", exc_info=e)
+                return None
 
             if not data:
                 fail_count += 1
