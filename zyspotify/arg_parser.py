@@ -81,6 +81,11 @@ def parse_args():
         default=Path.home() / "Music" / "ZYSpotify Music",
     )
     parser.add_argument(
+        "--dbdir",
+        help="Folder to save the database",
+        default=Path.home() / "zyspotify_config",
+    )
+    parser.add_argument(
         "-pd",
         "--episodes-dir",
         help="Folder to save the downloaded episodes files",

@@ -95,9 +95,9 @@ CREATE TABLE IF NOT EXISTS credentials (
 
 class SQLiteDBManager:
     def __init__(self) -> None:
-        self.create_db()
+        ...
 
-    def create_db(self, db_dir: Path = Path.home() / "config"):
+    def create_db(self, db_dir: Path):
         Path.mkdir(db_dir, parents=True, exist_ok=True)
 
         self.connection = sqlite3.connect(

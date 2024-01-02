@@ -165,7 +165,7 @@ class ZYSpotify:
             if oserr.errno == errno.ENAMETOOLONG:
                 filename = filename[:GENERIC_MAX_STR_LEN]
 
-            else: # something unexpected
+            else:  # something unexpected
                 raise
 
         # TODO: there is more to flesh out here, filename still could be too long
@@ -560,12 +560,17 @@ class ZYSpotify:
             logger.info(f"ZYSpotify {__version__}")
             return
 
+        db_dir = Path(self.args.dbdir)
+        db_manager.create_db(db_dir)
+        logger.info(f"DB ready at {db_dir / 'zyspotify.db'}")
+
         try:
             logger.debug(
-                f"Public IP: {requests.get('https://api.ipify.org').content.decode('utf8')}"
+                f"Public IP: {requests.get('https://api.ipify.org', timeout=5).content.decode('utf8')}"
             )
         except requests.exceptions.RequestException:
             logger.error("IP check failed")
+
         self.splash()
         while not self.login():
             logger.error("Invalid credentials")
