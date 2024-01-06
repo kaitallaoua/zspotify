@@ -415,6 +415,12 @@ class ZYSpotify:
 
     def download_artist(self, artist_id: SpotifyArtistId):
         if not db_manager.have_artist_already_downloaded(artist_id):
+
+            artist_name = self.respot.request.get_artist_info(artist_id)["name"]
+
+            # just attempt insert of artist, it may not exist already
+            db_manager.store_artist((artist_id, artist_name), should_commit=True)
+
             albums_ids = self.respot.request.get_artist_albums(artist_id)
             if not albums_ids:
                 logger.error(f"Artist {artist_id} has no albums")
