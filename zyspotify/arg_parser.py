@@ -81,6 +81,11 @@ def parse_args():
         default=Path.home() / "Music" / "ZYSpotify Music",
     )
     parser.add_argument(
+        "--dbdir",
+        help="Folder to save the database",
+        default=Path.home() / "zyspotify_config",
+    )
+    parser.add_argument(
         "-pd",
         "--episodes-dir",
         help="Folder to save the downloaded episodes files",
@@ -133,6 +138,13 @@ def parse_args():
         help="If flag setted NOT Skip existing already downloaded tracks",
         action="store_false",
         default=True,
+    )
+    parser.add_argument(
+        "-flaq",
+        "--force-liked-artist-query",
+        help="Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.",
+        action="store_true",
+        default=False,
     )
     parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"

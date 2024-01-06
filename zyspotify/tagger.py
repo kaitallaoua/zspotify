@@ -1,6 +1,23 @@
 import music_tag
 import requests
 from mutagen import id3
+import logging
+from time import sleep
+logger = logging.getLogger()
+
+
+def generic_get_request(url: str, retry_count: int = 0) -> requests.Response:
+    if retry_count > 10:
+        raise RuntimeError("ConnectionError: generic_get_request retries exceeded")
+
+    try:
+        return requests.get(url, timeout=5)
+    except requests.exceptions.RequestException as e:
+        logger.error(
+            f"generic_get_request RequestException: {'response had type none' if e.response is None else e.response.text}"
+        )
+        sleep(30)
+        return generic_get_request(url, retry_count+1)
 
 
 class AudioTagger:
@@ -86,7 +103,7 @@ class AudioTagger:
                 tags[tag] = id3.Frames[tag](encoding=3, text=value)
 
         if image_url:
-            albumart = requests.get(image_url).content
+            albumart = generic_get_request(image_url).content
             if albumart:
                 tags["APIC"] = id3.APIC(
                     encoding=3, mime="image/jpeg", type=3, desc="0", data=albumart
@@ -125,7 +142,7 @@ class AudioTagger:
                 tags[tag] = value
 
         if image_url:
-            albumart = requests.get(image_url).content
+            albumart = generic_get_request(image_url).content
             if albumart:
                 tags["artwork"] = albumart
 

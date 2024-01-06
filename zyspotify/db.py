@@ -95,9 +95,9 @@ CREATE TABLE IF NOT EXISTS credentials (
 
 class SQLiteDBManager:
     def __init__(self) -> None:
-        self.create_db()
+        ...
 
-    def create_db(self, db_dir: Path = Path.home() / "config"):
+    def create_db(self, db_dir: Path):
         Path.mkdir(db_dir, parents=True, exist_ok=True)
 
         self.connection = sqlite3.connect(
@@ -197,8 +197,10 @@ class SQLiteDBManager:
     def store_all_liked_artists(
         self, packed_artists: list[PackedArtists], should_commit: bool = False
     ) -> None:
+        
+        # already inserted artists just ignore them
         self.cursor.executemany(
-            "INSERT INTO artists (artist_id, name) VALUES (?, ?)", packed_artists
+            "INSERT OR IGNORE INTO artists (artist_id, name) VALUES (?, ?)", packed_artists
         )
 
         if should_commit:

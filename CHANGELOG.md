@@ -1,4 +1,12 @@
 # Changelog
+**v3.0.2 (22 Dec 2023)**
+- already downloaded log entries become info instead of warning
+- use `logger` instead of `logging`
+- `authorized_get_request` better handles different kinds of errors
+- all get requests use timeouts to prevent program hanging
+- remove `except Exception as e:`
+
+
 **v3.0.1 (22 Dec 2023)**
 - added logging support, replaced relevant prints with logger
 

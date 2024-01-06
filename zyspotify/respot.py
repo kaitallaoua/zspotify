@@ -4,7 +4,7 @@ import json
 import re
 import requests
 import time
-from typing import List
+from typing import List, Optional
 from .db import db_manager
 from .utils import FormatUtils
 from .custom_types import *
@@ -23,16 +23,20 @@ def removeDuplicates(lst):
     return [t for t in (set(tuple(i) for i in lst))]
 
 
+MAX_AUTH_GET_RETRIES = 10
+AUTH_GET_TIMEOUT = 10
+AUTH_GET_RETRY_MULTIPLE_SEC = 10
+
 API_ME = "https://api.spotify.com/v1/me/"
 
 
 class Respot:
-    def __init__(self, config_dir, force_premium, audio_format, antiban_wait_time):
+    def __init__(self, config_dir, force_premium, force_liked_artist_query, audio_format, antiban_wait_time):
         self.config_dir: Path = config_dir
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
-        self.auth: RespotAuth = RespotAuth(self.force_premium)
+        self.auth: RespotAuth = RespotAuth(self.force_premium, force_liked_artist_query)
         self.request: RespotRequest = None
 
     def is_authenticated(self, username=None, password=None) -> bool:
@@ -62,25 +66,26 @@ class Respot:
         output_path = temp_path
 
         if extension == audio_bytes_format:
-            logging.info(f"Saving {output_path.stem} directly")
+            logger.info(f"Saving {output_path.stem} directly")
             handler.bytes_to_file(audio_bytes, output_path)
         elif extension == "source":
             output_str = filename + "." + audio_bytes_format
             output_path = temp_path.parent / output_str
-            logging.info(f"Saving {filename} as {extension}")
+            logger.info(f"Saving {filename} as {extension}")
             handler.bytes_to_file(audio_bytes, output_path)
         else:
             output_str = filename + "." + extension
             output_path = temp_path.parent / output_str
-            logging.info(f"Converting {filename} to {extension}")
+            logger.info(f"Converting {filename} to {extension}")
             handler.convert_audio_format(audio_bytes, output_path)
 
         return output_path
 
 
 class RespotAuth:
-    def __init__(self, force_premium):
+    def __init__(self, force_premium, force_liked_artist_query):
         self.force_premium = force_premium
+        self.force_liked_artist_query = force_liked_artist_query
         self.session = None
         self.token = None
         self.token_your_library = None
@@ -152,10 +157,10 @@ class RespotAuth:
         account_type = self.session.get_user_attribute("type")
         if account_type == "premium" or self.force_premium:
             self.quality = AudioQuality.VERY_HIGH
-            logging.info("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
+            logger.info("[ DETECTED PREMIUM ACCOUNT - USING VERY_HIGH QUALITY ]\n")
         else:
             self.quality = AudioQuality.HIGH
-            logging.info("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
+            logger.info("[ DETECTED FREE ACCOUNT - USING HIGH QUALITY ]\n")
 
     def get_quality(self) -> AudioQuality:
         assert self.quality is not None
@@ -168,9 +173,18 @@ class RespotRequest:
         self.token = auth.token
         self.token_your_library = auth.token_your_library
 
-    def authorized_get_request(self, url: str, retry_count: int = 0, **kwargs):
-        if retry_count > 3:
+    def authorized_get_request(
+        self, url: str, retry_count: int = 0, **kwargs
+    ) -> Optional[requests.Response]:
+        if retry_count > MAX_AUTH_GET_RETRIES:
+            logger.critical(
+                f"Max authorized_get_request retries ({MAX_AUTH_GET_RETRIES}) reached."
+            )
             raise RuntimeError("Connection Error: Too many retries")
+
+        def retry():
+            time.sleep(retry_count * AUTH_GET_RETRY_MULTIPLE_SEC)
+            return self.authorized_get_request(url, retry_count + 1, **kwargs)
 
         try:
             response = requests.get(
@@ -179,64 +193,99 @@ class RespotRequest:
                     "Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"
                 },
                 **kwargs,
+                timeout=AUTH_GET_TIMEOUT,
             )
-            if response.status_code == 401:
-                logging.warning("Token expired, refreshing...")
-                self.token, self.token_your_library = self.auth.refresh_token()
-                return self.authorized_get_request(url, retry_count + 1, **kwargs)
+
+            response.raise_for_status()
+
+            if response.status_code == 204:
+                logger.error("authorized_get_request http 204 No Content")
+                retry()
+
+            # if headers indicated response contained json, verify it decodes fine.
+            if (
+                response.status_code != 204 and
+                response.headers["content-type"].strip().startswith("application/json")
+            ):
+                json_resp = response.json()
+
+                empty = not bool(json_resp)
+                if json_resp == None or empty:
+                    logger.error(f"authorized_get_request json response was empty")
+                    retry()
+
+            # typical, errorless case
             return response
-        except requests.exceptions.ConnectionError:
-            return self.authorized_get_request(url, retry_count + 1, **kwargs)
 
-    def get_track_info(self, track_id) -> dict:
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.HTTPError as e:
+            if response.status_code == 401:
+                logger.warning("Token expired, refreshing...")
+                self.token, self.token_your_library = self.auth.refresh_token()
+            else:
+                logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}")
+
+            retry()
+
+        except requests.exceptions.Timeout as e:
+            logger.error(f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.JSONDecodeError as e:
+            logger.error(f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}")
+            retry()
+
+    def get_track_info(self, track_id) -> Optional[dict]:
         """Retrieves metadata for downloaded songs"""
-        try:
-            info = json.loads(
-                self.authorized_get_request(
-                    "https://api.spotify.com/v1/tracks?ids="
-                    + track_id
-                    + "&market=from_token"
-                ).text
+        info_request = self.authorized_get_request(
+                "https://api.spotify.com/v1/tracks?ids="
+                + track_id
+                + "&market=from_token"
             )
-
-            # Sum the size of the images, compares and saves the index of the
-            # largest image size
-            sum_total = []
-            for sum_px in info["tracks"][0]["album"]["images"]:
-                sum_total.append(sum_px["height"] + sum_px["width"])
-
-            img_index = sum_total.index(max(sum_total)) if sum_total else -1
-
-            artist_id = info["tracks"][0]["artists"][0]["id"]
-
-            artists = [data["name"] for data in info["tracks"][0]["artists"]]
-
-            # TODO: Implement genre checking
-            return {
-                "id": track_id,
-                "artist_id": artist_id,
-                "artist_name": RespotUtils.conv_artist_format(artists),
-                "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
-                "album_name": info["tracks"][0]["album"]["name"],
-                "audio_name": info["tracks"][0]["name"],
-                "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
-                if img_index >= 0
-                else None,
-                "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
-                    0
-                ],
-                "disc_number": info["tracks"][0]["disc_number"],
-                "audio_number": info["tracks"][0]["track_number"],
-                "scraped_song_id": info["tracks"][0]["id"],
-                "is_playable": info["tracks"][0]["is_playable"],
-                "release_date": info["tracks"][0]["album"]["release_date"],
-            }
-
-        except Exception as e:
-            logging.critical("###   get_track_info - FAILED TO QUERY METADATA   ###")
-            logging.critical("track_id:", track_id)
-            logging.critical(e, exc_info=True)
+        if info_request is None:
             return None
+
+        # Sum the size of the images, compares and saves the index of the
+        # largest image size
+        info = info_request.json()
+
+        sum_total = []
+        for sum_px in info["tracks"][0]["album"]["images"]:
+            sum_total.append(sum_px["height"] + sum_px["width"])
+
+        img_index = sum_total.index(max(sum_total)) if sum_total else -1
+
+        artist_id = info["tracks"][0]["artists"][0]["id"]
+
+        artists = [data["name"] for data in info["tracks"][0]["artists"]]
+
+        # TODO: Implement genre checking
+        return {
+            "id": track_id,
+            "artist_id": artist_id,
+            "artist_name": RespotUtils.conv_artist_format(artists),
+            "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
+            "album_name": info["tracks"][0]["album"]["name"],
+            "audio_name": info["tracks"][0]["name"],
+            "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
+            if img_index >= 0
+            else None,
+            "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
+                0
+            ],
+            "disc_number": info["tracks"][0]["disc_number"],
+            "audio_number": info["tracks"][0]["track_number"],
+            "scraped_song_id": info["tracks"][0]["id"],
+            "is_playable": info["tracks"][0]["is_playable"],
+            "release_date": info["tracks"][0]["album"]["release_date"],
+        }
 
     def get_all_user_playlists(self):
         """Returns list of users playlists"""
@@ -298,7 +347,7 @@ class RespotRequest:
         self, album_id: SpotifyAlbumId, artist_id: SpotifyArtistId
     ) -> list[PackedSongs]:
         if not db_manager.have_all_album_songs(album_id):
-            logging.info(f"need to request album {album_id}'s songs from spotify")
+            logger.info(f"need to request album {album_id}'s songs from spotify")
             songs = self.request_all_album_songs(album_id, artist_id)
 
             db_manager.store_album_songs(songs)
@@ -356,9 +405,14 @@ class RespotRequest:
 
     def get_album_info(self, album_id):
         """Returns album name"""
-        resp = self.authorized_get_request(
+        album_resp = self.authorized_get_request(
             f"https://api.spotify.com/v1/albums/{album_id}"
-        ).json()
+        )
+
+        if album_resp is None:
+            return None
+
+        resp = album_resp.json()
 
         artists = []
         for artist in resp["artists"]:
@@ -381,7 +435,7 @@ class RespotRequest:
 
     def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
         if not db_manager.have_all_artist_albums(artist_id):
-            logging.info(f"need to request artist {artist_id}'s albums from spotify")
+            logger.info(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
 
             db_manager.store_all_artist_albums(artist_id, all_artist_albums)
@@ -584,8 +638,8 @@ class RespotRequest:
             }
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
-        if not db_manager.have_all_liked_artists():
-            logging.info("need to request liked artists from spotify")
+        if not db_manager.have_all_liked_artists() or self.auth.force_liked_artist_query:
+            logger.info(f"{'[Forced] ' if self.auth.force_liked_artist_query else ''}need to request liked artists from spotify")
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
@@ -614,7 +668,9 @@ class RespotRequest:
                     name = str(song["track"]["artists"][0]["name"])
                     packed_artists.append((id, name))
             except KeyError:
-                logging.error(f"Failed to get liked artists for offset: {offset}, continuing")
+                logger.error(
+                    f"Failed to get liked artists for offset: {offset}, continuing"
+                )
                 continue
             if len(resp["items"]) < limit:
                 break
@@ -645,58 +701,57 @@ class RespotTrackHandler:
     def create_out_dirs(self, parent_path) -> None:
         parent_path.mkdir(parents=True, exist_ok=True)
 
-    def download_audio(self, track_id, filename) -> BytesIO:
+    def download_audio(self, track_id, filename) -> Optional[BytesIO]:
         """Downloads raw song audio from Spotify"""
         # TODO: ADD disc_number IF > 1
 
         try:
+            _track_id = TrackId.from_base62(track_id)
+            stream = self.auth.session.content_feeder().load(
+                _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+            )
+        except ApiClient.StatusCodeException:
+            _track_id = EpisodeId.from_base62(track_id)
+            stream = self.auth.session.content_feeder().load(
+                _track_id, VorbisOnlyAudioQuality(self.quality), False, None
+            )
+
+        total_size = stream.input_stream.size
+        downloaded = 0
+        fail_count = 0
+        audio_bytes = BytesIO()
+        progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
+
+        while downloaded < total_size:
+            remaining = total_size - downloaded
+            read_size = min(self.CHUNK_SIZE, remaining)
+
+            # librespot audio read can raise IndexError
             try:
-                _track_id = TrackId.from_base62(track_id)
-                stream = self.auth.session.content_feeder().load(
-                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                )
-            except ApiClient.StatusCodeException:
-                _track_id = EpisodeId.from_base62(track_id)
-                stream = self.auth.session.content_feeder().load(
-                    _track_id, VorbisOnlyAudioQuality(self.quality), False, None
-                )
-
-            total_size = stream.input_stream.size
-            downloaded = 0
-            fail_count = 0
-            audio_bytes = BytesIO()
-            progress_bar = tqdm(total=total_size, unit="B", unit_scale=True)
-
-            while downloaded < total_size:
-                remaining = total_size - downloaded
-                read_size = min(self.CHUNK_SIZE, remaining)
                 data = stream.input_stream.stream().read(read_size)
+            except IndexError as e:
+                logger.error(f"stream download failed with id: {track_id}", exc_info=e)
+                return None
 
-                if not data:
-                    fail_count += 1
-                    if fail_count > self.RETRY_DOWNLOAD:
-                        break
-                else:
-                    fail_count = 0  # reset fail_count on successful data read
+            if not data:
+                fail_count += 1
+                if fail_count > self.RETRY_DOWNLOAD:
+                    break
+            else:
+                fail_count = 0  # reset fail_count on successful data read
 
-                downloaded += len(data)
-                progress_bar.update(len(data))
-                audio_bytes.write(data)
+            downloaded += len(data)
+            progress_bar.update(len(data))
+            audio_bytes.write(data)
 
-            progress_bar.close()
+        progress_bar.close()
 
-            # Sleep to avoid ban
-            time.sleep(self.antiban_wait_time)
+        # Sleep to avoid ban
+        time.sleep(self.antiban_wait_time)
 
-            audio_bytes.seek(0)
+        audio_bytes.seek(0)
 
-            return audio_bytes
-
-        except Exception as e:
-            logging.critical("###   download_track - FAILED TO DOWNLOAD   ###")
-            logging.critical(e, exc_info=True)
-            logging.critical(track_id, filename)
-            return None
+        return audio_bytes
 
     def convert_audio_format(self, audio_bytes: BytesIO, output_path: Path) -> None:
         """Converts raw audio (ogg vorbis) to user specified format"""
