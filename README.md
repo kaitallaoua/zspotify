@@ -58,15 +58,47 @@ Clone the repo, use virtual enviroments, pip install the requirements and follow
 ## Usage
 
 ```
-usage: zyspotify [-h] [-lsdall] [-md MUSIC_DIR] [--antiban-time ANTIBAN_TIME] [--antiban-album ANTIBAN_ALBUM] [-f]
+usage: __main__.py [-h] [-lsdall] [-ar ARTIST] [-cd CONFIG_DIR] [-ld LOG_DIR] [-md MUSIC_DIR] [--dbdir DBDIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
+                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-mlsb MAX_LOG_SIZE_BYTES] [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+                   [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+                   [search]
+
+positional arguments:
+  search                Searches for a track, album, artist or playlist or download by url
 
 options:
   -h, --help            show this help message and exit
   -lsdall, --all-liked-all-artists
                         Download all songs from all (main) artists that appear in your liked songs
-  -f, --force-premium   Force premium account
+  -ar ARTIST, --artist ARTIST
+                        Downloads an artist from their id or url
+  -cd CONFIG_DIR, --config-dir CONFIG_DIR
+                        Folder to save the config files
+  -ld LOG_DIR, --log-dir LOG_DIR
+                        Folder to save the log files
   -md MUSIC_DIR, --music-dir MUSIC_DIR
                         Folder to save the downloaded music files
+  --dbdir DBDIR         Folder to save the database
+  -v, --version         Shows the current version of ZYSpotify and exit
+  -af {mp3,ogg,source}, --audio-format {mp3,ogg,source}
+                        Audio format to download the tracks. Use 'source' to preserve the source format without conversion.
+  --album-in-filename   Adds the album name to the filename
+  --antiban-time ANTIBAN_TIME
+                        Time to wait between downloads to avoid Ban
+  --antiban-album ANTIBAN_ALBUM
+                        Time to wait between album downloads to avoid Ban
+  --limit LIMIT         Search limit
+  -f, --force-premium   Force premium account
+  -ns, --not-skip-existing
+                        If flag setted NOT Skip existing already downloaded tracks
+  -flaq, --force-liked-artist-query
+                        Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.
+  -mlsb MAX_LOG_SIZE_BYTES, --max-log-size-bytes MAX_LOG_SIZE_BYTES
+                        Maximum size of log file in bytes.
+  -lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}, --log-file-level {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
+                        Level of logging for log file
+  -sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}, --stdout-log-level {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
+                        Level of logging for stdout (console)
 ```
 
 ## Changelog
