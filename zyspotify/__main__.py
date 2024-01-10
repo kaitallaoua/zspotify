@@ -48,7 +48,6 @@ class ZYSpotify:
 
         # User defined directories
         self.config_dir = Path(self.args.config_dir)
-        self.download_dir = Path(self.args.download_dir)
         self.music_dir = Path(self.args.music_dir)
         self.episodes_dir = Path(self.args.episodes_dir)
 
