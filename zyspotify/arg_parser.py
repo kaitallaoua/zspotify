@@ -16,44 +16,44 @@ def parse_args():
         const=None,
         nargs="?",
     )
-    # parser.add_argument(
-    #     "-ap",
-    #     "--all-playlists",
-    #     help="Downloads all saved playlist from your library",
-    #     action="store_true",
-    # )
-    # parser.add_argument(
-    #     "-sp",
-    #     "--select-playlists",
-    #     help="Downloads a saved playlist from your library",
-    #     action="store_true",
-    # )
-    # parser.add_argument(
-    #     "-ls",
-    #     "--liked-songs",
-    #     help="Downloads your liked songs",
-    #     action="store_true",
-    # )
+    parser.add_argument(
+        "-ap",
+        "--all-playlists",
+        help="Downloads all saved playlist from your library",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-sp",
+        "--select-playlists",
+        help="Downloads a saved playlist from your library",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-ls",
+        "--liked-songs",
+        help="Downloads your liked songs",
+        action="store_true",
+    )
     parser.add_argument(
         "-lsdall",
         "--all-liked-all-artists",
         help="Download all songs from all (main) artists that appear in your liked songs",
         action="store_true",
     )
-    # parser.add_argument("-pl", "--playlist", help="Download playlist by id or url")
-    # parser.add_argument("-tr", "--track", help="Downloads a track from their id or url")
-    # parser.add_argument(
-    #     "-al", "--album", help="Downloads an album from their id or url"
-    # )
+    parser.add_argument("-pl", "--playlist", help="Download playlist by id or url")
+    parser.add_argument("-tr", "--track", help="Downloads a track from their id or url")
+    parser.add_argument(
+        "-al", "--album", help="Downloads an album from their id or url"
+    )
     parser.add_argument(
         "-ar", "--artist", help="Downloads an artist from their id or url"
     )
-    # parser.add_argument(
-    #     "-ep", "--episode", help="Downloads a episode from their id or url"
-    # )
-    # parser.add_argument(
-    #     "-fs", "--full-show", help="Downloads all show episodes from id or url"
-    # )
+    parser.add_argument(
+        "-ep", "--episode", help="Downloads a episode from their id or url"
+    )
+    parser.add_argument(
+        "-fs", "--full-show", help="Downloads all show episodes from id or url"
+    )
     parser.add_argument(
         "-cd",
         "--config-dir",
@@ -79,12 +79,12 @@ def parse_args():
         help="Folder to save the database",
         default=Path.home() / "zyspotify_config",
     )
-    # parser.add_argument(
-    #     "-pd",
-    #     "--episodes-dir",
-    #     help="Folder to save the downloaded episodes files",
-    #     default=Path.home() / "Music" / "ZYSpotify Podcast",
-    # )
+    parser.add_argument(
+        "-pd",
+        "--episodes-dir",
+        help="Folder to save the downloaded episodes files",
+        default=Path.home() / "Music" / "ZYSpotify Podcast",
+    )
     parser.add_argument(
         "-v",
         "--version",
@@ -140,9 +140,9 @@ def parse_args():
         action="store_true",
         default=False,
     )
-    # parser.add_argument(
-    #     "-bd", "--bulk-download", help="Bulk download from file with urls"
-    # )
+    parser.add_argument(
+        "-bd", "--bulk-download", help="Bulk download from file with urls"
+    )
     parser.add_argument(
         "-mlsb",
         "--max-log-size-bytes",
