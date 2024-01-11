@@ -48,7 +48,6 @@ class ZYSpotify:
 
         # User defined directories
         self.config_dir = Path(self.args.config_dir)
-        self.download_dir = Path(self.args.download_dir)
         self.music_dir = Path(self.args.music_dir)
         self.episodes_dir = Path(self.args.episodes_dir)
 
@@ -415,6 +414,12 @@ class ZYSpotify:
 
     def download_artist(self, artist_id: SpotifyArtistId):
         if not db_manager.have_artist_already_downloaded(artist_id):
+
+            artist_name = self.respot.request.get_artist_info(artist_id)["name"]
+
+            # just attempt insert of artist, it may not exist already
+            db_manager.store_artist((artist_id, artist_name), should_commit=True)
+
             albums_ids = self.respot.request.get_artist_albums(artist_id)
             if not albums_ids:
                 logger.error(f"Artist {artist_id} has no albums")

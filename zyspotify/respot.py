@@ -458,6 +458,18 @@ class RespotRequest:
         ).json()
         return resp["items"]
 
+    def get_artist_info(self, artist_id: SpotifyArtistId) -> ArtistInfo:
+        """returns list of albums in an artist"""
+
+        offset = 0
+        limit = 50
+
+        resp = self.authorized_get_request(
+            f"https://api.spotify.com/v1/artists/{artist_id}",
+            params={"limit": limit, "offset": offset},
+        ).json()
+        return resp
+
     def get_liked_tracks(self):
         """Returns user's saved tracks"""
         songs = []

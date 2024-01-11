@@ -1,6 +1,8 @@
 SpotifyArtistId = str
 ArtistName = str
-PackedArtists = list[tuple[SpotifyArtistId, ArtistName]]
+PackedArtist = tuple[SpotifyArtistId, ArtistName]
+PackedArtists = list[PackedArtist]
+ArtistInfo = dict[str, str]
 
 SpotifyAlbumId = str
 SpotifyAlbumName = str

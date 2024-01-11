@@ -69,12 +69,6 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-d",
-        "--download-dir",
-        help="Folder to save the downloaded files",
-        default=Path.home() / "Music",
-    )
-    parser.add_argument(
         "-md",
         "--music-dir",
         help="Folder to save the downloaded music files",

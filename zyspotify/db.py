@@ -206,6 +206,18 @@ class SQLiteDBManager:
         if should_commit:
             self.connection.commit()
 
+    def store_artist(
+        self, artist: PackedArtist, should_commit: bool = False
+    ) -> None:
+        
+        # already inserted artists just ignore them
+        self.cursor.execute(
+            "INSERT OR IGNORE INTO artists (artist_id, name) VALUES (?, ?)", artist
+        )
+
+        if should_commit:
+            self.connection.commit()
+
     def set_artist_fully_downloaded(
         self, artist_id: SpotifyArtistId, should_commit: bool = False
     ) -> None:
