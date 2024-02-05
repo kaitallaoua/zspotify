@@ -42,7 +42,7 @@ class ZYSpotify:
             force_premium=self.args.force_premium,
             audio_format=self.args.audio_format,
             antiban_wait_time=self.args.antiban_time,
-            force_liked_artist_query=self.args.force_liked_artist_query
+            cli_args=self.args
         )
         self.search_limit = self.args.limit
 
@@ -413,10 +413,16 @@ class ZYSpotify:
         return True
 
     def download_artist(self, artist_id: SpotifyArtistId):
-        if not db_manager.have_artist_already_downloaded(artist_id):
+
+        if not db_manager.have_artist_already_downloaded(artist_id) or self.args.force_album_query:
+
+
 
             artist_name = self.respot.request.get_artist_info(artist_id)["name"]
 
+            if self.args.force_album_query:
+                logger.info(f"[Forced] fetching albums for artist {artist_name}")
+                
             # just attempt insert of artist, it may not exist already
             db_manager.store_artist((artist_id, artist_name), should_commit=True)
 

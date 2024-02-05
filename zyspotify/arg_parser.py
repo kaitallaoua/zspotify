@@ -140,6 +140,15 @@ def parse_args():
         action="store_true",
         default=False,
     )
+
+    parser.add_argument(
+        "-faq",
+        "--force-album-query",
+        help="Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.",
+        action="store_true",
+        default=False,
+    )
+
     parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
     )
