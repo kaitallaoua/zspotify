@@ -31,12 +31,12 @@ API_ME = "https://api.spotify.com/v1/me/"
 
 
 class Respot:
-    def __init__(self, config_dir, force_premium, force_liked_artist_query, audio_format, antiban_wait_time):
+    def __init__(self, config_dir, force_premium, cli_args, audio_format, antiban_wait_time):
         self.config_dir: Path = config_dir
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
         self.antiban_wait_time: int = antiban_wait_time
-        self.auth: RespotAuth = RespotAuth(self.force_premium, force_liked_artist_query)
+        self.auth: RespotAuth = RespotAuth(self.force_premium, cli_args)
         self.request: RespotRequest = None
 
     def is_authenticated(self, username=None, password=None) -> bool:
@@ -83,9 +83,10 @@ class Respot:
 
 
 class RespotAuth:
-    def __init__(self, force_premium, force_liked_artist_query):
+    def __init__(self, force_premium, cli_args):
         self.force_premium = force_premium
-        self.force_liked_artist_query = force_liked_artist_query
+        self.force_liked_artist_query = cli_args.force_liked_artist_query
+        self.force_album_query = cli_args.force_album_query
         self.session = None
         self.token = None
         self.token_your_library = None
@@ -434,7 +435,7 @@ class RespotRequest:
             }
 
     def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
-        if not db_manager.have_all_artist_albums(artist_id):
+        if not db_manager.have_all_artist_albums(artist_id) or self.auth.force_album_query:
             logger.info(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
 

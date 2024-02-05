@@ -3,7 +3,7 @@
 [![Docker CI](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml)
 [![GPLv3](https://img.shields.io/github/license/jsavargas/zspotify)](https://opensource.org/license/gpl-3-0)
 
-This is a work in progress, with active development. Expect breaking changes!
+This is a work in progress, with active development. Expect breaking changes! Expect that this program will eventually crash and need to be restarted. However with my changes it should resume where it left off very quickly! 
 
 This is a moderately modifed fork of ZSpotify with the goal of more robust large downloads (sqlite db instead of json archive file), eventually with the purpose to be run periodically/as a service to fetch new songs and more. A fork was decided as many, many changes were desired to be implemented more quickly than PR's.
 
@@ -56,11 +56,11 @@ Of course edit arguments as needed. To adjust music download dir, either
 Clone the repo, use virtual enviroments, pip install the requirements and follow the usage below
 
 ## Usage
-
+Note: not yet implmemented features/switches will raise a `NotImplementedError` and crash the program, as intended. This is not a bug!
 ```
-usage: __main__.py [-h] [-lsdall] [-ar ARTIST] [-cd CONFIG_DIR] [-ld LOG_DIR] [-md MUSIC_DIR] [--dbdir DBDIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
-                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-mlsb MAX_LOG_SIZE_BYTES] [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
-                   [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pl PLAYLIST] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR] [-md MUSIC_DIR] [--dbdir DBDIR]
+                   [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME] [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-faq]
+                   [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES] [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
                    [search]
 
 positional arguments:
@@ -68,10 +68,24 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  -ap, --all-playlists  Downloads all saved playlist from your library
+  -sp, --select-playlists
+                        Downloads a saved playlist from your library
+  -ls, --liked-songs    Downloads your liked songs
   -lsdall, --all-liked-all-artists
                         Download all songs from all (main) artists that appear in your liked songs
+  -pl PLAYLIST, --playlist PLAYLIST
+                        Download playlist by id or url
+  -tr TRACK, --track TRACK
+                        Downloads a track from their id or url
+  -al ALBUM, --album ALBUM
+                        Downloads an album from their id or url
   -ar ARTIST, --artist ARTIST
                         Downloads an artist from their id or url
+  -ep EPISODE, --episode EPISODE
+                        Downloads a episode from their id or url
+  -fs FULL_SHOW, --full-show FULL_SHOW
+                        Downloads all show episodes from id or url
   -cd CONFIG_DIR, --config-dir CONFIG_DIR
                         Folder to save the config files
   -ld LOG_DIR, --log-dir LOG_DIR
@@ -79,6 +93,8 @@ options:
   -md MUSIC_DIR, --music-dir MUSIC_DIR
                         Folder to save the downloaded music files
   --dbdir DBDIR         Folder to save the database
+  -pd EPISODES_DIR, --episodes-dir EPISODES_DIR
+                        Folder to save the downloaded episodes files
   -v, --version         Shows the current version of ZYSpotify and exit
   -af {mp3,ogg,source}, --audio-format {mp3,ogg,source}
                         Audio format to download the tracks. Use 'source' to preserve the source format without conversion.
@@ -93,6 +109,10 @@ options:
                         If flag setted NOT Skip existing already downloaded tracks
   -flaq, --force-liked-artist-query
                         Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.
+  -faq, --force-album-query
+                        Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.
+  -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
+                        Bulk download from file with urls
   -mlsb MAX_LOG_SIZE_BYTES, --max-log-size-bytes MAX_LOG_SIZE_BYTES
                         Maximum size of log file in bytes.
   -lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}, --log-file-level {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
