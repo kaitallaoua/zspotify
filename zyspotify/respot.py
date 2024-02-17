@@ -27,8 +27,11 @@ MAX_AUTH_GET_RETRIES = 10
 AUTH_GET_TIMEOUT = 10
 AUTH_GET_RETRY_MULTIPLE_SEC = 10
 
-API_ME = "https://api.spotify.com/v1/me/"
+SPOTIFY_API = "https://api.spotify.com/v1"
 
+API_ME = f"{SPOTIFY_API}/me"
+
+API_PLAYLIST = f"{SPOTIFY_API}/playlists"
 
 class Respot:
     def __init__(self, config_dir, force_premium, cli_args, audio_format, antiban_wait_time):
@@ -219,7 +222,7 @@ class RespotRequest:
             return response
 
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}")
+            logger.error(f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
             retry()
 
         except requests.exceptions.HTTPError as e:
@@ -227,20 +230,20 @@ class RespotRequest:
                 logger.warning("Token expired, refreshing...")
                 self.token, self.token_your_library = self.auth.refresh_token()
             else:
-                logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}")
+                logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
 
             retry()
 
         except requests.exceptions.Timeout as e:
-            logger.error(f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}")
+            logger.error(f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
             retry()
 
         except requests.exceptions.JSONDecodeError as e:
-            logger.error(f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}")
+            logger.error(f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
             retry()
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}")
+            logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
             retry()
 
     def get_track_info(self, track_id) -> Optional[dict]:
@@ -315,7 +318,7 @@ class RespotRequest:
 
         while True:
             resp = self.authorized_get_request(
-                f"https://api.spotify.com/v1/playlists/{playlist_id}/tracks",
+                f"{API_PLAYLIST}/{playlist_id}/tracks",
                 params={"limit": limit, "offset": offset},
             ).json()
             offset += limit
@@ -336,7 +339,7 @@ class RespotRequest:
     def get_playlist_info(self, playlist_id):
         """Returns information scraped from playlist"""
         resp = self.authorized_get_request(
-            f"https://api.spotify.com/v1/playlists/{playlist_id}?fields=name,owner(display_name)&market=from_token"
+            f"{API_PLAYLIST}/{playlist_id}?fields=name,owner(display_name)&market=from_token"
         ).json()
         return {
             "name": resp["name"].strip(),
@@ -664,13 +667,17 @@ class RespotRequest:
         return db_manager.get_all_liked_artist_ids()
 
     def request_all_liked_artists(self) -> List[PackedArtists]:
+        return self.request_all_playlist_artists(f"{API_ME}/tracks")
+
+    def request_all_playlist_artists(self, link: str) -> List[PackedArtists]:
         packed_artists: PackedArtists = []
         offset = 0
         limit = 50
 
         while True:
+            # f"{API_PLAYLIST}/{playlist_id}/tracks"
             resp = self.authorized_get_request(
-                API_ME + "tracks",
+                link,
                 params={"limit": limit, "offset": offset},
             ).json()
 
@@ -682,7 +689,7 @@ class RespotRequest:
                     packed_artists.append((id, name))
             except KeyError:
                 logger.error(
-                    f"Failed to get liked artists for offset: {offset}, continuing"
+                    f"Failed to get artists for offset: {offset}, continuing"
                 )
                 continue
             if len(resp["items"]) < limit:
@@ -692,7 +699,6 @@ class RespotRequest:
         # upsert all artists table so next time we dont have to call this
 
         return sorted(removeDuplicates(packed_artists))
-
 
 class RespotTrackHandler:
     """Manages downloader and converter functions"""

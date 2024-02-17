@@ -40,7 +40,7 @@ def parse_args():
         help="Download all songs from all (main) artists that appear in your liked songs",
         action="store_true",
     )
-    parser.add_argument("-pl", "--playlist", help="Download playlist by id or url")
+    parser.add_argument("-pla", "--playlist-artists", help="Download all artists in a playlist by id or url")
     parser.add_argument("-tr", "--track", help="Downloads a track from their id or url")
     parser.add_argument(
         "-al", "--album", help="Downloads an album from their id or url"
