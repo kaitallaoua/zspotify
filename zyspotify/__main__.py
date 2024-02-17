@@ -7,7 +7,7 @@ import importlib.metadata as metadata
 import os
 from .custom_types import *
 from .db import db_manager
-from .respot import Respot, RespotUtils
+from .respot import Respot, RespotUtils, API_PLAYLIST
 from .tagger import AudioTagger
 from .utils import FormatUtils
 from .arg_parser import parse_args
@@ -281,23 +281,20 @@ class ZYSpotify:
         else:
             logger.info(f"Skipping song {track_id}, already downloaded")
 
-    def download_playlist(self, playlist_id):
+    def download_playlist_artists(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
         if not playlist:
             logger.error("Playlist not found")
             return False
-        songs = self.respot.request.get_playlist_songs(playlist_id)
-        if not songs:
-            logger.error("Playlist is empty")
-            return False
-        playlist_name = playlist["name"]
-        if playlist_name == "":
-            playlist_name = playlist_id
-        logger.info(f"Downloading {playlist_name} playlist")
-        basepath = self.music_dir / FormatUtils.sanitize_data(playlist_name)
-        for song in songs:
-            self.download_track(song["id"], basepath, "playlist")
-        logger.info(f"Finished downloading {playlist['name']} playlist")
+        
+        # todo: cache this request
+        packed_artists = self.respot.request.request_all_playlist_artists(f"{API_PLAYLIST}/{playlist_id}/tracks")
+
+        logger.info(f"Downloading [{len(packed_artists)}] artists")
+
+        for artist_id in [artist[0] for artist in packed_artists]:
+            self.download_artist(artist_id)
+
 
     def download_all_user_playlists(self):
         playlists = self.respot.request.get_all_user_playlists()
@@ -305,7 +302,7 @@ class ZYSpotify:
             logger.error("No playlists found")
             return False
         for playlist in playlists["playlists"]:
-            self.download_playlist(playlist["id"])
+            self.download_playlist_artists(playlist["id"])
             self.antiban_wait(self.antiban_album_time)
         logger.info("Finished downloading all user playlists")
 
@@ -350,7 +347,7 @@ class ZYSpotify:
             logger.warning(f"{invalid_ids} do not exist, downloading the rest")
 
         for playlist in playlist_ids:
-            self.download_playlist(playlist)
+            self.download_playlist_artists(playlist)
             self.antiban_wait(self.antiban_album_time)
         logger.info("Finished downloading selected playlists")
 
@@ -465,7 +462,7 @@ class ZYSpotify:
         if parsed_url["track"]:
             ret = self.download_track(parsed_url["track"])
         elif parsed_url["playlist"]:
-            ret = self.download_playlist(parsed_url["playlist"])
+            ret = self.download_playlist_artists(parsed_url["playlist"])
         elif parsed_url["album"]:
             ret = self.download_album(parsed_url["album"])
         elif parsed_url["artist"]:
@@ -547,7 +544,7 @@ class ZYSpotify:
                 elif result["type"] == "album":
                     self.download_album(result["id"])
                 elif result["type"] == "playlist":
-                    self.download_playlist(result["id"])
+                    self.download_playlist_artists(result["id"])
                 elif result["type"] == "artist":
                     self.download_artist(result["id"])
             return True
@@ -561,7 +558,7 @@ class ZYSpotify:
             elif result["type"] == "album":
                 self.download_album(result["id"])
             elif result["type"] == "playlist":
-                self.download_playlist(result["id"])
+                self.download_playlist_artists(result["id"])
             elif result["type"] == "artist":
                 self.download_artist(result["id"])
         return True
@@ -598,13 +595,12 @@ class ZYSpotify:
             self.download_liked_songs()
         elif self.args.all_liked_all_artists:
             self.download_all_songs_from_all_liked_artists()
-        elif self.args.playlist:
-            raise NotImplementedError()
-            for playlist in self.split_input(self.args.playlist):
-                if "spotify.com" in self.args.playlist:
+        elif self.args.playlist_artists:
+            for playlist in self.split_input(self.args.playlist_artists):
+                if "spotify.com" in self.args.playlist_artists:
                     self.download_by_url(playlist)
                 else:
-                    self.download_playlist(playlist)
+                    self.download_playlist_artists(playlist)
         elif self.args.album:
             raise NotImplementedError()
             for album in self.split_input(self.args.album):
