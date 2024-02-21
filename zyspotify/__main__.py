@@ -291,7 +291,7 @@ class ZYSpotify:
 
     
         # check if need to dl lyrics here
-        if not db_manager.have_lyrics_downloaded(track_id):
+        if not db_manager.have_lyrics_downloaded(track_id) and not self.args.skip_lyrics:
             # handle song path
             assert(lyrics_path != "")
 

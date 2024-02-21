@@ -142,6 +142,14 @@ def parse_args():
     )
 
     parser.add_argument(
+        "-sl",
+        "--skip-lyrics",
+        help="Skip downloading lyrics",
+        action="store_true",
+        default=False,
+    )
+
+    parser.add_argument(
         "-faq",
         "--force-album-query",
         help="Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.",
