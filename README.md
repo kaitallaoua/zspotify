@@ -60,7 +60,7 @@ Note: not yet implmemented features/switches will raise a `NotImplementedError` 
 ```
 usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pla PLAYLIST_ARTISTS] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR]
                    [-md MUSIC_DIR] [--dbdir DBDIR] [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
-                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-sl] [-faq] [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES]
+                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-sl] [-faq] [-rl] [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES]
                    [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
                    [search]
 
@@ -113,6 +113,7 @@ options:
   -sl, --skip-lyrics    Skip downloading lyrics
   -faq, --force-album-query
                         Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.
+  -rl, --repair-lyrics  Download lyrics for each song if lyrics not downloaded but song was
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
                         Bulk download from file with urls
   -mlsb MAX_LOG_SIZE_BYTES, --max-log-size-bytes MAX_LOG_SIZE_BYTES

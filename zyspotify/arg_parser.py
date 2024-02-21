@@ -156,7 +156,13 @@ def parse_args():
         action="store_true",
         default=False,
     )
-
+    parser.add_argument(
+        "-rl",
+        "--repair-lyrics",
+        help="Download lyrics for each song if lyrics not downloaded but song was",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument(
         "-bd", "--bulk-download", help="Bulk download from file with urls"
     )
