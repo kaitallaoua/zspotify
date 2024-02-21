@@ -58,9 +58,10 @@ Clone the repo, use virtual enviroments, pip install the requirements and follow
 ## Usage
 Note: not yet implmemented features/switches will raise a `NotImplementedError` and crash the program, as intended. This is not a bug!
 ```
-usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pl PLAYLIST] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR] [-md MUSIC_DIR] [--dbdir DBDIR]
-                   [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME] [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-faq]
-                   [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES] [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pla PLAYLIST_ARTISTS] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR]
+                   [-md MUSIC_DIR] [--dbdir DBDIR] [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
+                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-sl] [-faq] [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES]
+                   [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
                    [search]
 
 positional arguments:
@@ -74,8 +75,8 @@ options:
   -ls, --liked-songs    Downloads your liked songs
   -lsdall, --all-liked-all-artists
                         Download all songs from all (main) artists that appear in your liked songs
-  -pl PLAYLIST, --playlist PLAYLIST
-                        Download playlist by id or url
+  -pla PLAYLIST_ARTISTS, --playlist-artists PLAYLIST_ARTISTS
+                        Download all artists in a playlist by id or url
   -tr TRACK, --track TRACK
                         Downloads a track from their id or url
   -al ALBUM, --album ALBUM
@@ -109,6 +110,7 @@ options:
                         If flag setted NOT Skip existing already downloaded tracks
   -flaq, --force-liked-artist-query
                         Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.
+  -sl, --skip-lyrics    Skip downloading lyrics
   -faq, --force-album-query
                         Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
