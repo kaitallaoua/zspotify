@@ -231,7 +231,6 @@ class RespotRequest:
                 logger.warning("Token expired, refreshing...")
                 self.token, self.token_your_library = self.auth.refresh_token()
             elif response.status_code == 404:
-                logger.error(f"HTTP ERROR: {response}")
                 return response
             else:
                 logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
@@ -715,7 +714,7 @@ class RespotRequest:
             return
 
         elif lyrics.status_code == 404:
-            logger.error(f"Lyrics unavailable on spotify for song: {song_id}")
+            logger.warning(f"Lyrics unavailable on spotify for song: {song_id}")
             return
         
         lyrics_json = lyrics.json()
