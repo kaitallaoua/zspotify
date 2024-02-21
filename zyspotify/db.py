@@ -114,6 +114,8 @@ class SQLiteDBManager:
         self.cursor.execute(CREATE_FETCHED_ARTIST_ALBUMS_TABLE)
         self.cursor.execute(CREATE_FETCHED_ALBUM_SONGS_TABLE)
         self.cursor.execute(CREATE_CREDENTIALS_TABLE)
+        self.migration_0()
+        self.migration_1()
         self.connection.commit()
 
     def have_all_artist_albums(self, artist_id: SpotifyArtistId) -> bool:
@@ -378,6 +380,32 @@ class SQLiteDBManager:
         return self.cursor.execute(
             "SELECT username, credentials, type FROM credentials WHERE id = 0",
         ).fetchone()
+
+    def get_db_version(self) -> int:
+        return (self.cursor.execute("PRAGMA user_version").fetchone())[0]
+    def migration_0(self):
+        version = self.get_db_version()
+
+        if version >= 0:
+            return
+
+        # ensure version is set to 0
+        self.connection.execute("PRAGMA user_version = 0")
+        # nothing more to do, this is the first version
+
+    def migration_1(self):
+        version = self.get_db_version()
+
+        if version >= 1:
+            return
+        
+        # add changes here
+        # add column for lyric download state, not present in versions < 1
+        self.cursor.execute("ALTER TABLE songs ADD lyrics_downloaded INTEGER NOT NULL DEFAULT 0")
+        # end changes
+        
+        self.connection.execute(f"PRAGMA user_version = {version + 1}")
+
 
 
 db_manager = SQLiteDBManager()
