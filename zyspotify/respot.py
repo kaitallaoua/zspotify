@@ -715,6 +715,10 @@ class RespotRequest:
 
         elif lyrics.status_code == 404:
             logger.warning(f"Lyrics unavailable on spotify for song: {song_id}")
+
+
+            # note: since we return, lyrics are not set as downloaded. which is intentional.
+            # can query again later to check
             return
         
         lyrics_json = lyrics.json()
