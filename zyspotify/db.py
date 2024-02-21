@@ -380,7 +380,24 @@ class SQLiteDBManager:
         return self.cursor.execute(
             "SELECT username, credentials, type FROM credentials WHERE id = 0",
         ).fetchone()
+    
+    def have_lyrics_downloaded(self, song_id: SpotifySongId) -> bool:
+        fetched = self.cursor.execute(
+            "SELECT lyrics_downloaded FROM songs WHERE song_id = ?", (song_id,)
+        ).fetchone()
+        if fetched is None or fetched[0] == 0:
+            return False
+        else:
+            return True
 
+    def get_song_path(self, song_id: SpotifySongId) -> str:
+        return (self.cursor.execute("SELECT full_filepath FROM songs WHERE song_id = ?", (song_id,)).fetchone())[0]
+
+    def set_lyrics_downloaded(self, song_id: SpotifySongId, should_commit: bool = False) -> None:
+        self.cursor.execute(
+            """UPDATE songs SET lyrics_downloaded = ? WHERE song_id = ?""", (1, song_id))
+        if should_commit:
+            self.connection.commit()
     def get_db_version(self) -> int:
         return (self.cursor.execute("PRAGMA user_version").fetchone())[0]
     def migration_0(self):
@@ -403,7 +420,7 @@ class SQLiteDBManager:
         # add column for lyric download state, not present in versions < 1
         self.cursor.execute("ALTER TABLE songs ADD lyrics_downloaded INTEGER NOT NULL DEFAULT 0")
         # end changes
-        
+
         self.connection.execute(f"PRAGMA user_version = {version + 1}")
 
 

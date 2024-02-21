@@ -286,11 +286,15 @@ class ZYSpotify:
         else:
             logger.info(f"Skipping song {track_id}, already downloaded")
 
+            # need to get song path from db
+            lyrics_path = db_manager.get_song_path(track_id)
+
     
         # check if need to dl lyrics here
-        
-        # handle song path
-        if not lyrics_path == "":
+        if not db_manager.have_lyrics_downloaded(track_id):
+            # handle song path
+            assert(lyrics_path != "")
+
             self.respot.request.request_song_lyrics(track_id, lyrics_path)
 
 

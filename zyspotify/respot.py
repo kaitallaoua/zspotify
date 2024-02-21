@@ -732,12 +732,11 @@ class RespotRequest:
         parent = temp_path.parent
         final_path = (parent / Path(file_path_stem)).as_posix()
 
-        print(f"no ext: {final_path}")
         if(lyrics_json['lyrics']['syncType'] == "UNSYNCED"):
             with open(final_path + ".txt", 'w+', encoding='utf-8') as file:
                 for line in formatted_lyrics:
                     file.writelines(line['words'] + '\n')
-            return
+            logger.info(f"Unsynced Lyrics Sucessfully downloaded for {song_id}")
         elif(lyrics_json['lyrics']['syncType'] == "LINE_SYNCED"):
             with open(final_path + ".lrc", 'w+', encoding='utf-8') as file:
                 for line in formatted_lyrics:
@@ -746,8 +745,9 @@ class RespotRequest:
                     ts_seconds = str(math.floor((timestamp % 60000) / 1000)).zfill(2)
                     ts_millis = str(math.floor(timestamp % 1000))[:2].zfill(2)
                     file.writelines(f'[{ts_minutes}:{ts_seconds}.{ts_millis}]' + line['words'] + '\n')
-            return
-     
+            logger.info(f"Synced Lyrics Sucessfully downloaded for {song_id}")
+
+        db_manager.set_lyrics_downloaded(song_id, True)     
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
 
