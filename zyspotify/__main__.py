@@ -208,6 +208,9 @@ class ZYSpotify:
         return filename
 
     def download_track(self, track_id, path=None, caller=None):
+
+        lyrics_path: str = ""
+
         if not db_manager.have_song_downloaded(track_id):
             if caller == "show" or caller == "episode":
                 track = self.respot.request.get_episode_info(track_id)
@@ -278,8 +281,19 @@ class ZYSpotify:
             )
             logger.info(f"Finished downloading {filename}")
 
+
+            lyrics_path = output_path
         else:
             logger.info(f"Skipping song {track_id}, already downloaded")
+
+    
+        # check if need to dl lyrics here
+        
+        # handle song path
+        if not lyrics_path == "":
+            self.respot.request.request_song_lyrics(track_id, lyrics_path)
+
+
 
     def download_playlist_artists(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)

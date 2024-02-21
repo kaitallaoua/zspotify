@@ -15,6 +15,7 @@ from librespot.metadata import TrackId, EpisodeId
 from pydub import AudioSegment
 from tqdm import tqdm
 import logging
+import math
 
 logger = logging.getLogger()
 
@@ -178,7 +179,7 @@ class RespotRequest:
         self.token_your_library = auth.token_your_library
 
     def authorized_get_request(
-        self, url: str, retry_count: int = 0, **kwargs
+        self, url: str, retry_count: int = 0, add_header: dict = {}, **kwargs
     ) -> Optional[requests.Response]:
         if retry_count > MAX_AUTH_GET_RETRIES:
             logger.critical(
@@ -188,14 +189,14 @@ class RespotRequest:
 
         def retry():
             time.sleep(retry_count * AUTH_GET_RETRY_MULTIPLE_SEC)
-            return self.authorized_get_request(url, retry_count + 1, **kwargs)
-
+            return self.authorized_get_request(url, retry_count + 1, **kwargs, add_header=add_header)
         try:
+            headers = {"Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"}
+            headers.update(add_header)
+
             response = requests.get(
                 url,
-                headers={
-                    "Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"
-                },
+                headers=headers,
                 **kwargs,
                 timeout=AUTH_GET_TIMEOUT,
             )
@@ -229,6 +230,9 @@ class RespotRequest:
             if response.status_code == 401:
                 logger.warning("Token expired, refreshing...")
                 self.token, self.token_your_library = self.auth.refresh_token()
+            elif response.status_code == 404:
+                logger.error(f"HTTP ERROR: {response}")
+                return response
             else:
                 logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
 
@@ -700,6 +704,50 @@ class RespotRequest:
 
         return sorted(removeDuplicates(packed_artists))
 
+    # adapted from: https://github.com/zotify-dev/zotify
+    def request_song_lyrics(self, song_id: SpotifySongId, file_path: str) -> None:
+        lyrics = self.authorized_get_request(
+            f'https://spclient.wg.spotify.com/color-lyrics/v2/track/{song_id}?format=json&vocalRemoval=false', add_header={'app-platform': 'WebPlayer'}
+        )
+
+        if lyrics is None:
+            logger.error(f'Failed to fetch lyrics: response was empty {song_id}')
+            return
+
+        elif lyrics.status_code == 404:
+            logger.error(f"Lyrics unavailable on spotify for song: {song_id}")
+            return
+        
+        lyrics_json = lyrics.json()
+
+        try:
+            formatted_lyrics = lyrics_json['lyrics']['lines']
+        except KeyError:
+            logger.error(f'Failed to fetch lyrics: Invalid json for song: {song_id}')
+            return
+        
+
+        temp_path = Path(file_path)
+        file_path_stem = temp_path.stem
+        parent = temp_path.parent
+        final_path = (parent / Path(file_path_stem)).as_posix()
+
+        print(f"no ext: {final_path}")
+        if(lyrics_json['lyrics']['syncType'] == "UNSYNCED"):
+            with open(final_path + ".txt", 'w+', encoding='utf-8') as file:
+                for line in formatted_lyrics:
+                    file.writelines(line['words'] + '\n')
+            return
+        elif(lyrics_json['lyrics']['syncType'] == "LINE_SYNCED"):
+            with open(final_path + ".lrc", 'w+', encoding='utf-8') as file:
+                for line in formatted_lyrics:
+                    timestamp = int(line['startTimeMs'])
+                    ts_minutes = str(math.floor(timestamp / 60000)).zfill(2)
+                    ts_seconds = str(math.floor((timestamp % 60000) / 1000)).zfill(2)
+                    ts_millis = str(math.floor(timestamp % 1000))[:2].zfill(2)
+                    file.writelines(f'[{ts_minutes}:{ts_seconds}.{ts_millis}]' + line['words'] + '\n')
+            return
+     
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
 
