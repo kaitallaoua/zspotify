@@ -610,7 +610,7 @@ class ZYSpotify:
             custom_cursor.execute('SELECT song_id, full_filepath FROM songs WHERE lyrics_downloaded = 0 AND download_completed = 1')
             for row in custom_cursor:
                 self.respot.request.request_song_lyrics(row[0], row[1])
-                self.antiban_wait(4)
+                self.antiban_wait(2)
         elif self.args.select_playlists:
             raise NotImplementedError()
             self.download_select_user_playlists()
