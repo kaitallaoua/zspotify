@@ -208,6 +208,9 @@ class ZYSpotify:
         return filename
 
     def download_track(self, track_id, path=None, caller=None):
+
+        lyrics_path: str = ""
+
         if not db_manager.have_song_downloaded(track_id):
             if caller == "show" or caller == "episode":
                 track = self.respot.request.get_episode_info(track_id)
@@ -278,8 +281,23 @@ class ZYSpotify:
             )
             logger.info(f"Finished downloading {filename}")
 
+
+            lyrics_path = output_path
         else:
             logger.info(f"Skipping song {track_id}, already downloaded")
+
+            # need to get song path from db
+            lyrics_path = db_manager.get_song_path(track_id)
+
+    
+        # check if need to dl lyrics here
+        if not db_manager.have_lyrics_downloaded(track_id) and not self.args.skip_lyrics:
+            # handle song path
+            assert(lyrics_path != "")
+
+            self.respot.request.request_song_lyrics(track_id, lyrics_path)
+
+
 
     def download_playlist_artists(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
@@ -587,6 +605,12 @@ class ZYSpotify:
         if self.args.all_playlists:
             raise NotImplementedError()
             self.download_all_user_playlists()
+        elif self.args.repair_lyrics:
+            custom_cursor = db_manager.connection.cursor()
+            custom_cursor.execute('SELECT song_id, full_filepath FROM songs WHERE lyrics_downloaded = 0 AND download_completed = 1')
+            for row in custom_cursor:
+                self.respot.request.request_song_lyrics(row[0], row[1])
+                self.antiban_wait(2)
         elif self.args.select_playlists:
             raise NotImplementedError()
             self.download_select_user_playlists()

@@ -1,27 +1,31 @@
 # ZYSpotify
 
 [![Docker CI](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml/badge.svg)](https://github.com/kaitallaoua/zyspotify/actions/workflows/docker-ci.yml)
-[![GPLv3](https://img.shields.io/github/license/jsavargas/zspotify)](https://opensource.org/license/gpl-3-0)
+[![GPLv3](https://img.shields.io/badge/license-GPLv3-blue)](https://opensource.org/license/gpl-3-0)
+![Plex](https://img.shields.io/badge/plex-%23E5A00D.svg?style=for-the-badge&logo=plex&logoColor=white)
 
-This is a work in progress, with active development. Expect breaking changes! Expect that this program will eventually crash and need to be restarted. However with my changes it should resume where it left off very quickly! 
+ZYSpotify is a Spotify downloader that enables users to find and download (a lot of) songs. For great plex compatibiliy, ensure that `Prefer local metadata` is checked, Album Art is set to `Local Files Only`, and server agents are configured for local media as described [here](https://support.plex.tv/articles/215916117-adding-local-lyrics/). 
 
-This is a moderately modifed fork of ZSpotify with the goal of more robust large downloads (sqlite db instead of json archive file), eventually with the purpose to be run periodically/as a service to fetch new songs and more. A fork was decided as many, many changes were desired to be implemented more quickly than PR's.
+This is a moderately modifed fork of ZSpotify with the goal of more robust large downloads (sqlite db instead of json archive file), eventually with the purpose to be run periodically/as a service to fetch new songs and more.
+
+This is a work in progress, with active development. Expect breaking changes! Expect that this program will eventually crash and need to be restarted over a large download. However with my changes it should resume where it left off very quickly! 
+
 
 Currently only a subset of switches are supported, but eventually should be feature matched to zspotify. Only the shown switches in the usage are what have been tested, others may work (if NotImplementedError is removed).
 
-ZYSpotify is a Spotify downloader that enables users to find and download (a lot of) songs.
 
 ## Roadmap
 
 - [x] Use sqlite3 db instead of json archive
 - [x] Put credentials in db
-- [ ] Verify switch to ignore artist/album/song fetched and artist+album download_completed atributes (but not song download_completed) to check, and download if missing, missed songs
-- [ ] Add spotify liked songs playlist importer for plex
+- [x] Download lyrics
+- [x] Use logging libary instead of printing
+- [x] Check for new artist songs/albums feature
+- [x] Ensure docker support works
+- [ ] Add spotify playlist importer for plex <-- priority
+- [ ] Automate changelog
 - [ ] Ensure pip install works
 - [ ] Get all other switches working
-- [x] Use logging libary instead of printing
-- [ ] Check for new artist songs/albums feature
-- [x] Ensure docker support works
 - [ ] Conform project for strict type checking
 - [ ] Use code coverage/test suites
 
@@ -58,9 +62,10 @@ Clone the repo, use virtual enviroments, pip install the requirements and follow
 ## Usage
 Note: not yet implmemented features/switches will raise a `NotImplementedError` and crash the program, as intended. This is not a bug!
 ```
-usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pl PLAYLIST] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR] [-md MUSIC_DIR] [--dbdir DBDIR]
-                   [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME] [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-faq]
-                   [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES] [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+usage: __main__.py [-h] [-ap] [-sp] [-ls] [-lsdall] [-pla PLAYLIST_ARTISTS] [-tr TRACK] [-al ALBUM] [-ar ARTIST] [-ep EPISODE] [-fs FULL_SHOW] [-cd CONFIG_DIR] [-ld LOG_DIR]
+                   [-md MUSIC_DIR] [--dbdir DBDIR] [-pd EPISODES_DIR] [-v] [-af {mp3,ogg,source}] [--album-in-filename] [--antiban-time ANTIBAN_TIME]
+                   [--antiban-album ANTIBAN_ALBUM] [--limit LIMIT] [-f] [-ns] [-flaq] [-sl] [-faq] [-rl] [-bd BULK_DOWNLOAD] [-mlsb MAX_LOG_SIZE_BYTES]
+                   [-lfl {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}] [-sll {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
                    [search]
 
 positional arguments:
@@ -74,8 +79,8 @@ options:
   -ls, --liked-songs    Downloads your liked songs
   -lsdall, --all-liked-all-artists
                         Download all songs from all (main) artists that appear in your liked songs
-  -pl PLAYLIST, --playlist PLAYLIST
-                        Download playlist by id or url
+  -pla PLAYLIST_ARTISTS, --playlist-artists PLAYLIST_ARTISTS
+                        Download all artists in a playlist by id or url
   -tr TRACK, --track TRACK
                         Downloads a track from their id or url
   -al ALBUM, --album ALBUM
@@ -109,8 +114,10 @@ options:
                         If flag setted NOT Skip existing already downloaded tracks
   -flaq, --force-liked-artist-query
                         Force (ignore db check) querying all liked artists on account, useful when new artists have been added since first query.
+  -sl, --skip-lyrics    Skip downloading lyrics
   -faq, --force-album-query
                         Force (ignore db check) query for albums for artists. Useful when artists release new songs since first query.
+  -rl, --repair-lyrics  Download lyrics for each song if lyrics not downloaded but song was
   -bd BULK_DOWNLOAD, --bulk-download BULK_DOWNLOAD
                         Bulk download from file with urls
   -mlsb MAX_LOG_SIZE_BYTES, --max-log-size-bytes MAX_LOG_SIZE_BYTES
@@ -131,8 +138,7 @@ It is recommended to use a burner account to avoid any possible account bans.
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+Pull requests are welcome. Please discuss any significant changes on the [discussion](https://github.com/kaitallaoua/zyspotify/discussions) tab before starting to save your time.
 
 - [GitHub Issues](https://github.com/kaitallaoua/zyspotify/issues) of this repository.
 - [DockerHub](https://hub.docker.com/r/kaitallaoua/zyspotify) of this repository.
