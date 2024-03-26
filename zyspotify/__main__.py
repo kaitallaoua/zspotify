@@ -14,7 +14,7 @@ from .arg_parser import parse_args
 import logging
 from logging.handlers import RotatingFileHandler
 from logging.config import dictConfig
-
+from json import loads
 import errno
 
 try:
@@ -22,8 +22,14 @@ try:
 except metadata.PackageNotFoundError:
     __version__ = "unknown"
 
-_USERNAME = os.environ.get("USERNAME", None)
-_PASSWORD = os.environ.get("PASSWORD", None)
+_USERNAME = None
+_PASSWORD = None
+with open("/run/secrets/spotify_login") as login:
+    login = loads(login)
+    if "USERNAME" in login:
+        _USERNAME =  login["USERNAME"]
+    if "PASSWORD" in login:
+        _PASSWORD =  login["PASSWORD"]
 
 GENERIC_MAX_STR_LEN = 50
 

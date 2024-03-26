@@ -39,7 +39,7 @@ Tested with versions `3.10 <= python <= 3.12`, however slightly older versions p
 cd examples
 ```
 
-Edit `docker-compose.yml` with your username and password.
+Copy `config.example.json` to `config.json` and enter your username and password
 
 ```bash
 sudo docker compose run --rm zyspotify -lsdall

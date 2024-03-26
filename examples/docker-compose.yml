@@ -2,7 +2,8 @@ version: "3"
 services:
   zyspotify:
     image: kaitallaoua/zyspotify
-
+    secrets:
+      - spotify_login
     # bind to a vpn container already running if desired
     # such as https://github.com/wfg/docker-openvpn-client
     # network_mode: container:openvpn-client
@@ -10,8 +11,5 @@ services:
       - ./log:/root/zyspotify_log
       - ./config:/root/config
       - ./Music:/root/Music
-    environment:
-
-      # These should be removed after the first run. since credentials cached in db
-      - USERNAME=example@gmail.com
-      - PASSWORD=hunter2
+    secrets:
+      - spotify_login: ./config.json

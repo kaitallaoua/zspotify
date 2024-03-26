@@ -1,4 +1,7 @@
 # Changelog
+**v3.0.3 (26 Mar 2024)**
+- Enviroment Variables removed and added docker secrets for more security
+
 **v3.0.2 (22 Dec 2023)**
 - already downloaded log entries become info instead of warning
 - use `logger` instead of `logging`
