@@ -14,6 +14,7 @@ from .arg_parser import parse_args
 import logging
 from logging.handlers import RotatingFileHandler
 from logging.config import dictConfig
+from pydub.exceptions import CouldntDecodeError
 
 import errno
 
@@ -42,7 +43,7 @@ class ZYSpotify:
             force_premium=self.args.force_premium,
             audio_format=self.args.audio_format,
             antiban_wait_time=self.args.antiban_time,
-            cli_args=self.args
+            cli_args=self.args,
         )
         self.search_limit = self.args.limit
 
@@ -255,9 +256,21 @@ class ZYSpotify:
                     logger.info(f"Skipping {filename + ext} - Already downloaded")
                     return True
 
-            output_path = self.respot.download(
-                track_id, temp_path, self.args.audio_format, True
-            )
+            try:
+                output_path = self.respot.download(
+                    track_id, temp_path, self.args.audio_format, True
+                )
+            except CouldntDecodeError as e:
+
+                # https://github.com/jiaaro/pydub/issues/757#issuecomment-1812953496
+                # seems like a limitation of pydub and .wav files not being bigger than 4GB uncompressed ~668M files fail for me here
+                # TODO: is this fixable?
+                # for now its ok to just skip the file, do it here since the exit is cleaner
+                # stricly check the error message and only skip this specific one
+
+                if str(e) == "Unable to process >4GB files":
+                    logger.error(f"Song was too large to convert: track_id: {track_id} ")
+                    return
 
             if output_path == "":
                 return
@@ -281,7 +294,6 @@ class ZYSpotify:
             )
             logger.info(f"Finished downloading {filename}")
 
-
             lyrics_path = output_path
         else:
             logger.info(f"Skipping song {track_id}, already downloaded")
@@ -289,30 +301,31 @@ class ZYSpotify:
             # need to get song path from db
             lyrics_path = db_manager.get_song_path(track_id)
 
-    
         # check if need to dl lyrics here
-        if not db_manager.have_lyrics_downloaded(track_id) and not self.args.skip_lyrics:
+        if (
+            not db_manager.have_lyrics_downloaded(track_id)
+            and not self.args.skip_lyrics
+        ):
             # handle song path
-            assert(lyrics_path != "")
+            assert lyrics_path != ""
 
             self.respot.request.request_song_lyrics(track_id, lyrics_path)
-
-
 
     def download_playlist_artists(self, playlist_id):
         playlist = self.respot.request.get_playlist_info(playlist_id)
         if not playlist:
             logger.error("Playlist not found")
             return False
-        
+
         # todo: cache this request
-        packed_artists = self.respot.request.request_all_playlist_artists(f"{API_PLAYLIST}/{playlist_id}/tracks")
+        packed_artists = self.respot.request.request_all_playlist_artists(
+            f"{API_PLAYLIST}/{playlist_id}/tracks"
+        )
 
         logger.info(f"Downloading [{len(packed_artists)}] artists")
 
         for artist_id in [artist[0] for artist in packed_artists]:
             self.download_artist(artist_id)
-
 
     def download_all_user_playlists(self):
         playlists = self.respot.request.get_all_user_playlists()
@@ -429,15 +442,16 @@ class ZYSpotify:
 
     def download_artist(self, artist_id: SpotifyArtistId):
 
-        if not db_manager.have_artist_already_downloaded(artist_id) or self.args.force_album_query:
-
-
+        if (
+            not db_manager.have_artist_already_downloaded(artist_id)
+            or self.args.force_album_query
+        ):
 
             artist_name = self.respot.request.get_artist_info(artist_id)["name"]
 
             if self.args.force_album_query:
                 logger.info(f"[Forced] fetching albums for artist {artist_name}")
-                
+
             # just attempt insert of artist, it may not exist already
             db_manager.store_artist((artist_id, artist_name), should_commit=True)
 
@@ -607,7 +621,9 @@ class ZYSpotify:
             self.download_all_user_playlists()
         elif self.args.repair_lyrics:
             custom_cursor = db_manager.connection.cursor()
-            custom_cursor.execute('SELECT song_id, full_filepath FROM songs WHERE lyrics_downloaded = 0 AND download_completed = 1')
+            custom_cursor.execute(
+                "SELECT song_id, full_filepath FROM songs WHERE lyrics_downloaded = 0 AND download_completed = 1"
+            )
             for row in custom_cursor:
                 self.respot.request.request_song_lyrics(row[0], row[1])
                 self.antiban_wait(2)
