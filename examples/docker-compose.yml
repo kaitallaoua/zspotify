@@ -1,4 +1,3 @@
-version: "3"
 services:
   zyspotify:
     image: kaitallaoua/zyspotify
@@ -8,7 +7,7 @@ services:
     # network_mode: container:openvpn-client
     volumes:
       - ./log:/root/zyspotify_log
-      - ./config:/root/config
+      - ./config:/root/zyspotify_config
       - ./Music:/root/Music
     environment:
 
