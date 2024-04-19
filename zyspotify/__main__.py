@@ -603,7 +603,7 @@ class ZYSpotify:
 
         db_dir = Path(self.args.dbdir)
         db_manager.create_db(db_dir)
-        logger.info(f"DB ready at {db_dir / 'zyspotify.db'}")
+        logger.info(f"DB ready at {db_dir.absolute() / 'zyspotify.db'}")
 
         try:
             logger.debug(
