@@ -34,8 +34,13 @@ API_ME = f"{SPOTIFY_API}/me"
 
 API_PLAYLIST = f"{SPOTIFY_API}/playlists"
 
+LYRIC_API = "https://spclient.wg.spotify.com/color-lyrics/v2/track"
+
+
 class Respot:
-    def __init__(self, config_dir, force_premium, cli_args, audio_format, antiban_wait_time):
+    def __init__(
+        self, config_dir, force_premium, cli_args, audio_format, antiban_wait_time
+    ):
         self.config_dir: Path = config_dir
         self.force_premium: bool = force_premium
         self.audio_format: str = audio_format
@@ -189,9 +194,15 @@ class RespotRequest:
 
         def retry():
             time.sleep(retry_count * AUTH_GET_RETRY_MULTIPLE_SEC)
-            return self.authorized_get_request(url, retry_count + 1, **kwargs, add_header=add_header)
+            return self.authorized_get_request(
+                url, retry_count + 1, **kwargs, add_header=add_header
+            )
+
         try:
-            headers = {"Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) else self.token}"}
+
+            headers = {
+                "Authorization": f"Bearer {self.token_your_library if url.startswith(API_ME) or url.startswith(LYRIC_API) else self.token}"
+            }
             headers.update(add_header)
 
             response = requests.get(
@@ -208,54 +219,69 @@ class RespotRequest:
                 retry()
 
             # if headers indicated response contained json, verify it decodes fine.
-            if (
-                response.status_code != 204 and
-                response.headers["content-type"].strip().startswith("application/json")
-            ):
+            if response.status_code != 204 and response.headers[
+                "content-type"
+            ].strip().startswith("application/json"):
                 json_resp = response.json()
 
                 empty = not bool(json_resp)
                 if json_resp == None or empty:
                     logger.error(f"authorized_get_request json response was empty")
                     retry()
+            elif response is None:
+                retry()
 
             # typical, errorless case
             return response
 
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
+            logger.error(
+                f"authorized_get_request ConnectionError: {'response had type none' if e.response is None else e.response.text}",
+                exc_info=e,
+            )
             retry()
 
         except requests.exceptions.HTTPError as e:
             if response.status_code == 401:
                 logger.warning("Token expired, refreshing...")
                 self.token, self.token_your_library = self.auth.refresh_token()
+                
             elif response.status_code == 404:
                 return response
             else:
-                logger.error(f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
+                logger.error(
+                    f"authorized_get_request HTTPError: {'response had type none' if e.response is None else e.response.text}",
+                    exc_info=e,
+                )
 
             retry()
 
         except requests.exceptions.Timeout as e:
-            logger.error(f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
+            logger.error(
+                f"authorized_get_request Timeout: {'response had type none' if e.response is None else e.response.text}",
+                exc_info=e,
+            )
             retry()
 
         except requests.exceptions.JSONDecodeError as e:
-            logger.error(f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
+            logger.error(
+                f"authorized_get_request JSONDecodeError: {'response had type none' if e.response is None else e.response.text}",
+                exc_info=e,
+            )
             retry()
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}", exc_info=e)
+            logger.error(
+                f"authorized_get_request RequestException: {'response had type none' if e.response is None else e.response.text}",
+                exc_info=e,
+            )
             retry()
 
     def get_track_info(self, track_id) -> Optional[dict]:
         """Retrieves metadata for downloaded songs"""
         info_request = self.authorized_get_request(
-                "https://api.spotify.com/v1/tracks?ids="
-                + track_id
-                + "&market=from_token"
-            )
+            "https://api.spotify.com/v1/tracks?ids=" + track_id + "&market=from_token"
+        )
         if info_request is None:
             return None
 
@@ -281,12 +307,12 @@ class RespotRequest:
             "album_artist": info["tracks"][0]["album"]["artists"][0]["name"],
             "album_name": info["tracks"][0]["album"]["name"],
             "audio_name": info["tracks"][0]["name"],
-            "image_url": info["tracks"][0]["album"]["images"][img_index]["url"]
-            if img_index >= 0
-            else None,
-            "release_year": info["tracks"][0]["album"]["release_date"].split("-")[
-                0
-            ],
+            "image_url": (
+                info["tracks"][0]["album"]["images"][img_index]["url"]
+                if img_index >= 0
+                else None
+            ),
+            "release_year": info["tracks"][0]["album"]["release_date"].split("-")[0],
             "disc_number": info["tracks"][0]["disc_number"],
             "audio_number": info["tracks"][0]["track_number"],
             "scraped_song_id": info["tracks"][0]["id"],
@@ -441,7 +467,10 @@ class RespotRequest:
             }
 
     def get_artist_albums(self, artist_id) -> list[SpotifyAlbumId]:
-        if not db_manager.have_all_artist_albums(artist_id) or self.auth.force_album_query:
+        if (
+            not db_manager.have_all_artist_albums(artist_id)
+            or self.auth.force_album_query
+        ):
             logger.info(f"need to request artist {artist_id}'s albums from spotify")
             all_artist_albums = self.request_all_artist_albums(artist_id)
 
@@ -657,8 +686,13 @@ class RespotRequest:
             }
 
     def get_all_liked_artists(self) -> List[SpotifyArtistId]:
-        if not db_manager.have_all_liked_artists() or self.auth.force_liked_artist_query:
-            logger.info(f"{'[Forced] ' if self.auth.force_liked_artist_query else ''}need to request liked artists from spotify")
+        if (
+            not db_manager.have_all_liked_artists()
+            or self.auth.force_liked_artist_query
+        ):
+            logger.info(
+                f"{'[Forced] ' if self.auth.force_liked_artist_query else ''}need to request liked artists from spotify"
+            )
             all_liked_spotify_artists = self.request_all_liked_artists()
 
             # store in db
@@ -691,9 +725,7 @@ class RespotRequest:
                     name = str(song["track"]["artists"][0]["name"])
                     packed_artists.append((id, name))
             except KeyError:
-                logger.error(
-                    f"Failed to get artists for offset: {offset}, continuing"
-                )
+                logger.error(f"Failed to get artists for offset: {offset}, continuing")
                 continue
             if len(resp["items"]) < limit:
                 break
@@ -706,51 +738,62 @@ class RespotRequest:
     # adapted from: https://github.com/zotify-dev/zotify
     def request_song_lyrics(self, song_id: SpotifySongId, file_path: str) -> None:
         lyrics = self.authorized_get_request(
-            f'https://spclient.wg.spotify.com/color-lyrics/v2/track/{song_id}?format=json&vocalRemoval=false', add_header={'app-platform': 'WebPlayer'}
+            f"{LYRIC_API}/{song_id}?format=json&vocalRemoval=false&market=from_token",
+            add_header={
+                "app-platform": "WebPlayer",
+                "Accept": "application/json",
+                "Accept-Language": "en",
+                # now need to include user-agent, use something generic
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:43.0) Gecko/20100101 Firefox/124.0",
+            },
         )
 
         if lyrics is None:
-            logger.error(f'Failed to fetch lyrics: response was empty {song_id}')
+            logger.error(f"Failed to fetch lyrics: response was empty {song_id}")
             return
 
         elif lyrics.status_code == 404:
             logger.warning(f"Lyrics unavailable on spotify for song: {song_id}")
 
-
             # note: since we return, lyrics are not set as downloaded. which is intentional.
             # can query again later to check
             return
-        
+
         lyrics_json = lyrics.json()
 
         try:
-            formatted_lyrics = lyrics_json['lyrics']['lines']
+            formatted_lyrics = lyrics_json["lyrics"]["lines"]
         except KeyError:
-            logger.error(f'Failed to fetch lyrics: Invalid json for song: {song_id}')
+            logger.error(f"Failed to fetch lyrics: Invalid json for song: {song_id}")
             return
-        
 
         temp_path = Path(file_path)
         file_path_stem = temp_path.stem
         parent = temp_path.parent
         final_path = (parent / Path(file_path_stem)).as_posix()
 
-        if(lyrics_json['lyrics']['syncType'] == "UNSYNCED"):
-            with open(final_path + ".txt", 'w+', encoding='utf-8') as file:
+        if lyrics_json["lyrics"]["syncType"] == "UNSYNCED":
+            with open(final_path + ".txt", "w+", encoding="utf-8") as file:
                 for line in formatted_lyrics:
-                    file.writelines(line['words'] + '\n')
+                    file.writelines(line["words"] + "\n")
             logger.info(f"Unsynced Lyrics Sucessfully downloaded for {song_id}")
-        elif(lyrics_json['lyrics']['syncType'] == "LINE_SYNCED"):
-            with open(final_path + ".lrc", 'w+', encoding='utf-8') as file:
+        elif lyrics_json["lyrics"]["syncType"] == "LINE_SYNCED":
+            with open(final_path + ".lrc", "w+", encoding="utf-8") as file:
                 for line in formatted_lyrics:
-                    timestamp = int(line['startTimeMs'])
+                    timestamp = int(line["startTimeMs"])
                     ts_minutes = str(math.floor(timestamp / 60000)).zfill(2)
                     ts_seconds = str(math.floor((timestamp % 60000) / 1000)).zfill(2)
                     ts_millis = str(math.floor(timestamp % 1000))[:2].zfill(2)
-                    file.writelines(f'[{ts_minutes}:{ts_seconds}.{ts_millis}]' + line['words'] + '\n')
+                    file.writelines(
+                        f"[{ts_minutes}:{ts_seconds}.{ts_millis}]"
+                        + line["words"]
+                        + "\n"
+                    )
             logger.info(f"Synced Lyrics Sucessfully downloaded for {song_id}")
 
-        db_manager.set_lyrics_downloaded(song_id, True)     
+        db_manager.set_lyrics_downloaded(song_id, True)
+
+
 class RespotTrackHandler:
     """Manages downloader and converter functions"""
 
